@@ -9,7 +9,9 @@
 
 #define GAME_TITLE "ChargeGame"
 #define SCREEN_WIDTH 640
+int gCurrentWidth = SCREEN_WIDTH;
 #define SCREEN_HEIGHT 480
+int gCurrentHeight = SCREEN_HEIGHT;
 
 #define MAX_FILE_NAME 512
 
@@ -48,7 +50,6 @@ typedef enum EChargeState
 	EChargeState_mm,
 	EChargeState_mmm
 }EChargeState;
-
 
 typedef struct particle_t
 {
@@ -114,8 +115,8 @@ void ch_render(charge_t * this)
 	{
 		dest.w = 32;
 		dest.h = 32;
-		dest.x = (int)(this->x*SCREEN_WIDTH / 100 - 16);
-		dest.y = (int)(this->y*SCREEN_HEIGHT / 100 - 16);
+		dest.x = (int)(this->x*gCurrentWidth / 100 - 16);
+		dest.y = (int)(this->y*gCurrentHeight / 100 - 16);
 		this->t = LoadCorrectImageParticle(this->s);
 
 		SDL_RenderCopy(gSdlRenderer, this->t, NULL, &dest);
@@ -269,7 +270,7 @@ void InitParticle()
 	else
 		fprintf(stderr, "Fail to allocate memory for gMainParticle\n");
 
-	gmp->t = LoadImage(N_TEXTURE_PARTICLE);
+	gmp->t = LoadCorrectImageParticle(EChargeState_Particle);
 
 	gmp->x = 50;
 	gmp->y = 50;
@@ -294,8 +295,8 @@ void DrawBackground()
 {
 	SDL_Rect dest;
 
-	dest.w = SCREEN_WIDTH;
-	dest.h = SCREEN_HEIGHT;
+	dest.w = gCurrentWidth;
+	dest.h = gCurrentHeight;
 	dest.x = 0;
 	dest.y = 0;
 
@@ -315,8 +316,8 @@ void LimitTo60Fps(unsigned int LastUpdateTick)
 
 bool ch_over(charge_t* elt, double x, double y)
 {
-	double dx = 16.f * 100 / (double)SCREEN_WIDTH;
-	double dy = 16.f * 100 / (double)SCREEN_HEIGHT;
+	double dx = 16.f * 100 / (double)gCurrentWidth;
+	double dy = 16.f * 100 / (double)gCurrentHeight;
 	if(elt)
 	{
 		if (fabs(elt->x - x) <= dx &&fabs(elt->y - y) <= dy)
@@ -330,7 +331,7 @@ charge_t* OverCharge(int x, int y)
 	da_elm_t * it = da_ch.first;
 	while(it)
 	{
-		if (ch_over((charge_t*)it->elt, x * 100/(double)SCREEN_WIDTH, y * 100/(double)SCREEN_HEIGHT))
+		if (ch_over((charge_t*)it->elt, x * 100/(double)gCurrentWidth, y * 100/(double)gCurrentHeight))
 		{
 			return (charge_t*)it->elt;
 		}
@@ -343,7 +344,7 @@ void CreateCharge(int x, int y)
 {
 	charge_t * c = malloc(sizeof(charge_t));
 	da_push(&da_ch, c);
-	ch_init(c, x*100/(double)SCREEN_WIDTH, y*100/ (double)SCREEN_HEIGHT);
+	ch_init(c, x*100/(double)gCurrentWidth, y*100/ (double)gCurrentHeight);
 }
 
 void HandleLeftClick(bool bUp, int x, int y)
@@ -405,6 +406,18 @@ void HandleMiddleClick(bool bUp, int x, int y)
 	}
 }
 
+void InitWindow()
+{
+	/*Open the window, by default the window is centered*/
+	gSdlWindow = SDL_CreateWindow(GAME_TITLE,
+		SDL_WINDOWPOS_CENTERED,
+		SDL_WINDOWPOS_CENTERED,
+		SCREEN_WIDTH, SCREEN_HEIGHT,
+		SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+
+	gSdlRenderer = SDL_CreateRenderer(gSdlWindow, -1, SDL_RENDERER_ACCELERATED);
+}
+
 void PollInput()
 {
 	// event handling
@@ -421,7 +434,7 @@ void PollInput()
 			//Get mouse position
 			int x, y;
 			SDL_GetMouseState(&x, &y);
-			printf("mouse click : %d %d", x, y);
+			printf("mouse click : %d %d\n", x, y);
 
 			//for all the charge check if it is inside sprite form if so change the charge
 			switch (e.button.button)
@@ -432,9 +445,7 @@ void PollInput()
 			case SDL_BUTTON_RIGHT:
 				HandleRightClick(e.type == SDL_MOUSEBUTTONUP, x, y);
 				break;
-			//default:
-			//	HandleMiddleClick(x, y);
-			//	break;
+			default: ;
 			}
 		}
 		if(e.type == SDL_MOUSEMOTION)
@@ -443,15 +454,14 @@ void PollInput()
 			SDL_GetMouseState(&x, &y);
 			if(gdragCharge)
 			{
-				gdragCharge->x = x * 100 / (double)SCREEN_WIDTH;
-				gdragCharge->y = y * 100 / (double)SCREEN_HEIGHT;
+				gdragCharge->x = x * 100 / (double)gCurrentWidth;
+				gdragCharge->y = y * 100 / (double)gCurrentHeight;
 			}
 		}
 		if (e.type == SDL_MOUSEWHEEL)
 		{
 			int x, y;
 			SDL_GetMouseState(&x, &y);
-			printf("mouse click : %d %d", x, y);
 			if (e.wheel.y == 1) // scroll up
 			{
 				HandleMiddleClick(true, x, y);
@@ -459,6 +469,14 @@ void PollInput()
 			else if (e.wheel.y == -1) // scroll down
 			{
 				HandleMiddleClick(false, x, y);
+			}
+		}
+		if (e.type == SDL_WINDOWEVENT) //windows resize
+		{
+			if (e.window.event == SDL_WINDOWEVENT_RESIZED)
+			{
+				gCurrentWidth = e.window.data1;
+				gCurrentHeight = e.window.data2;
 			}
 		}
 	}
@@ -472,8 +490,8 @@ void DrawParticle()
 
 	dest.w = 32;
 	dest.h = 32;
-	dest.x = (int)(gmp->x*SCREEN_WIDTH/100 - 16);
-	dest.y = (int)(gmp->y*SCREEN_HEIGHT / 100 - 16);
+	dest.x = (int)(gmp->x*gCurrentWidth/100 - 16);
+	dest.y = (int)(gmp->y*gCurrentHeight / 100 - 16);
 
 	SDL_RenderCopy(gSdlRenderer, gmp->t, NULL, &dest);
 }
@@ -527,21 +545,10 @@ int main(int argc, char *argv[])
 		return false;
 	}
 
-	/*Open the window, by default the window is centered*/
-	gSdlWindow = SDL_CreateWindow(GAME_TITLE,
-	                 SDL_WINDOWPOS_CENTERED,
-	                 SDL_WINDOWPOS_CENTERED,
-	                 SCREEN_WIDTH, SCREEN_HEIGHT,
-	                 SDL_WINDOW_SHOWN);
-
-	gSdlRenderer = SDL_CreateRenderer(gSdlWindow, -1, SDL_RENDERER_ACCELERATED);
+	InitWindow();
 	SDL_SetRenderDrawColor(gSdlRenderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
 	SDL_RenderClear(gSdlRenderer);
 	SDL_RenderPresent(gSdlRenderer);
-	
-	InitBackgroundRender();
-	InitParticle();
-	da_init(&da_ch);
 
 	gtPARTICLE = LoadImage(N_TEXTURE_PARTICLE);
 	gtCHARGE1 = LoadImage(N_TEXTURE_CHARGE);
@@ -550,6 +557,10 @@ int main(int argc, char *argv[])
 	gtNEGCHARGE1 = LoadImage(N_TEXTURE_NEGCHARGE);
 	gtNEGCHARGE2 = LoadImage(N_TEXTURE_NEGCHARGE2);
 	gtNEGCHARGE3 = LoadImage(N_TEXTURE_NEGCHARGE3);
+
+	InitBackgroundRender();
+	InitParticle();
+	da_init(&da_ch);
 
 	while (gIsRunning)
 	{
