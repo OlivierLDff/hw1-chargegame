@@ -39,67 +39,78 @@ SDL_Texture * gtNEGCHARGE1 = NULL;
 SDL_Texture * gtNEGCHARGE2 = NULL;
 SDL_Texture * gtNEGCHARGE3 = NULL;
 
-typedef enum EChargeState
+typedef enum EObjectType
 {
-	EChargeState_Unknown,
-	EChargeState_Particle,
-	EChargeState_ppp,
-	EChargeState_pp,
-	EChargeState_p,
-	EChargeState_m,
-	EChargeState_mm,
-	EChargeState_mmm
-}EChargeState;
+	EObjectType_Unknown,
+	EObjectType_Particle,
+	EObjectType_ppp,
+	EObjectType_pp,
+	EObjectType_p,
+	EObjectType_m,
+	EObjectType_mm,
+	EObjectType_mmm
+}EObjectType;
 
-typedef struct particle_t
+typedef struct UBase
 {
-	/** \brief position in the x axis, between 0 and 100 */
+	EObjectType s;
 	double x;
-	/** \brief position in the x axis, between 0 and 100 */
 	double y;
-	/** \brief position in the x axis, between 0 and 100 */
-	double dx;
-	/** \brief position in the x axis, between 0 and 100 */
-	double dy;
-	SDL_Texture * t;
-}particle_t;
+}UBase;
 
-//The button
-typedef struct charge_t
+typedef struct UCharge
 {
+	EObjectType s;
 	/** \brief position in the x axis, between 0 and 100 */
 	double x;
 	/** \brief position in the x axis, between 0 and 100 */
 	double y;
 	/** \brief force that this charge apply in newton */
 	double f;
-	EChargeState s;
-	SDL_Texture * t;
-}charge_t;
+}UCharge;
 
-charge_t * gdragCharge = NULL;
+typedef struct UParticle
+{
+	EObjectType s;
+	/** \brief position in the x axis, between 0 and 100 */
+	double x;
+	/** \brief position in the x axis, between 0 and 100 */
+	double y;
 
-SDL_Texture * LoadCorrectImageParticle(enum EChargeState e)
+	double dx;
+	double dy;
+}UParticle;
+
+union UObject
+{
+	UBase b;
+	UCharge c;
+	UParticle p;
+};
+
+UCharge * gdragCharge = NULL;
+
+SDL_Texture * LoadCorrectImageParticle(EObjectType e)
 {
 	switch (e)
 	{
-	case EChargeState_Particle:return gtPARTICLE; break;
-	case EChargeState_ppp:return gtCHARGE3; break;
-	case EChargeState_pp:return gtCHARGE2; break;
-	case EChargeState_p: return gtCHARGE1; break;
-	case EChargeState_m: return gtNEGCHARGE1; break;
-	case EChargeState_mm: return gtNEGCHARGE2; break;
-	case EChargeState_mmm: return gtNEGCHARGE3; break;
+	case EObjectType_Particle:return gtPARTICLE; break;
+	case EObjectType_ppp:return gtCHARGE3; break;
+	case EObjectType_pp:return gtCHARGE2; break;
+	case EObjectType_p: return gtCHARGE1; break;
+	case EObjectType_m: return gtNEGCHARGE1; break;
+	case EObjectType_mm: return gtNEGCHARGE2; break;
+	case EObjectType_mmm: return gtNEGCHARGE3; break;
 	default: return gtPARTICLE;
 	}
 }
 
-void ch_init(charge_t * this, double x, double y)
+void ch_init(UCharge * this, double x, double y)
 {
 	this->x = x;
 	this->y = y;
 	this->f = 50;
-	this->s = EChargeState_p;
+	this->s = EObjectType_p;
 }
 
 void ch_handleEvent()
@@ -107,7 +118,7 @@ void ch_handleEvent()
 	
 }
 
-void ch_render(charge_t * this)
+void ch_render(UCharge * this)
 {
 	SDL_Rect dest;
 
@@ -117,9 +128,8 @@ void ch_render(charge_t * this)
 		dest.h = 32;
 		dest.x = (int)(this->x*gCurrentWidth / 100 - 16);
 		dest.y = (int)(this->y*gCurrentHeight / 100 - 16);
-		this->t = LoadCorrectImageParticle(this->s);
 
-		SDL_RenderCopy(gSdlRenderer, this->t, NULL, &dest);
+		SDL_RenderCopy(gSdlRenderer, LoadCorrectImageParticle(this->s), NULL, &dest);
 	}	
 }
 
@@ -238,8 +248,8 @@ void * da_remove(da_t * this)
 	return NULL;
 }
 
-da_t da_ch;
-particle_t * gmp = NULL;
+da_t da_obj;
+UParticle * gmp = NULL;
 
 SDL_Texture * LoadImage(const char * name)
 {
@@ -264,22 +274,23 @@ SDL_Texture * LoadImage(const char * name)
 
 void InitParticle()
 {
-	if (gmp == NULL) gmp = malloc(sizeof(particle_t));	
+	if (gmp == NULL) gmp = malloc(sizeof(UParticle));
 	if (gmp)
-		memset(gmp, 0, sizeof(struct particle_t));
+		memset(gmp, 0, sizeof(UParticle));
 	else
 		fprintf(stderr, "Fail to allocate memory for gMainParticle\n");
 
-	gmp->t = LoadCorrectImageParticle(EChargeState_Particle);
-
 	gmp->x = 50;
 	gmp->y = 50;
-}
+	gmp->s = EObjectType_Particle;
 
+	da_push(&da_obj, gmp);
+}
+/*
 void DestroyParticle()
 {
 	if (gmp) free(gmp);
-}
+}*/
 
 void InitBackgroundRender()
 {
@@ -314,7 +325,7 @@ void LimitTo60Fps(unsigned int LastUpdateTick)
 		SDL_Delay(16 - (ticks - LastUpdateTick));
 }
 
-bool ch_over(charge_t* elt, double x, double y)
+bool ch_over(UCharge* elt, double x, double y)
 {
 	double dx = 16.f * 100 / (double)gCurrentWidth;
 	double dy = 16.f * 100 / (double)gCurrentHeight;
@@ -326,15 +337,14 @@ bool ch_over(charge_t* elt, double x, double y)
 	return false;
 }
 
-charge_t* OverCharge(int x, int y)
+UCharge* OverCharge(int x, int y)
 {
-	da_elm_t * it = da_ch.first;
+	da_elm_t * it = da_obj.first;
 	while(it)
 	{
-		if (ch_over((charge_t*)it->elt, x * 100/(double)gCurrentWidth, y * 100/(double)gCurrentHeight))
-		{
-			return (charge_t*)it->elt;
-		}
+		EObjectType e = it->elt ? ((UBase*)it->elt)->s : EObjectType_Unknown;
+		if (e >= EObjectType_Particle && e <= EObjectType_mmm && ch_over((UCharge*)it->elt, x * 100 / (double)gCurrentWidth, y * 100 / (double)gCurrentHeight))
+			return (UCharge*)it->elt;
 		it = it->next;
 	}
 	return NULL;
@@ -342,8 +352,8 @@ charge_t* OverCharge(int x, int y)
 
 void CreateCharge(int x, int y)
 {
-	charge_t * c = malloc(sizeof(charge_t));
-	da_push(&da_ch, c);
+	UCharge * c = malloc(sizeof(UCharge));
+	da_push(&da_obj, c);
 	ch_init(c, x*100/(double)gCurrentWidth, y*100/ (double)gCurrentHeight);
 }
 
@@ -362,7 +372,7 @@ void HandleLeftClick(bool bUp, int x, int y)
 	}
 	else
 	{
-		charge_t * c = OverCharge(x, y);
+		UCharge * c = OverCharge(x, y);
 		if (c)
 		{
 			gdragCharge = c;
@@ -374,10 +384,10 @@ void HandleRightClick(bool bUp, int x, int y)
 {
 	if (bUp)
 	{
-		charge_t * c = OverCharge(x, y);
+		UCharge * c = OverCharge(x, y);
 		if (c)
 		{
-			void * res = da_removeat(&da_ch, c);
+			void * res = da_removeat(&da_obj, c);
 			if (res == c) free(c);
 			else fprintf(stderr, "Error removing charge\n");
 		}
@@ -386,20 +396,20 @@ void HandleRightClick(bool bUp, int x, int y)
 
 void HandleMiddleClick(bool bUp, int x, int y)
 {
-	charge_t * c = OverCharge(x, y);
+	UCharge * c = OverCharge(x, y);
 	if(c)
 	{
 		if(bUp)
 		{
-			if (c->s == EChargeState_ppp)
-				c->s = EChargeState_mmm;
+			if (c->s == EObjectType_ppp)
+				c->s = EObjectType_mmm;
 			else
 				c->s--;
 		}
 		else
 		{
-			if (c->s == EChargeState_mmm)
-				c->s = EChargeState_ppp;
+			if (c->s == EObjectType_mmm)
+				c->s = EObjectType_ppp;
 			else
 				c->s++;
 		}
@@ -493,20 +503,80 @@ void DrawParticle()
 	dest.x = (int)(gmp->x*gCurrentWidth/100 - 16);
 	dest.y = (int)(gmp->y*gCurrentHeight / 100 - 16);
 
-	SDL_RenderCopy(gSdlRenderer, gmp->t, NULL, &dest);
+	SDL_RenderCopy(gSdlRenderer, LoadCorrectImageParticle(gmp->s), NULL, &dest);
 }
 
 void UpdateGame(uint32_t delta)
 {
-	
+	int f = 0;
+	da_elm_t * it = da_obj.first;
+	while(it)
+	{
+		//f += ch_getForceAppliedtoParticle();
+		it = it->next;
+	}
 }
 
-void da_ch_render(da_t* da)
+void orderObjArray()
 {
-	da_elm_t * it = da_ch.first;
+	bool bChange = true;
+	while(bChange) //bubble sort
+	{
+		if (da_obj.size == 2)
+			bChange = true;
+		da_elm_t * it = da_obj.first;
+		bChange = false; 
+		while (it)
+		{
+			if (it->elt && it->next	&& it->next->elt && ((UBase *)it->elt)->y > ((UBase *)it->next->elt)->y)
+			{
+				da_elm_t * tnn = it->next->next;
+				da_elm_t * tn = it->next;
+				da_elm_t * tp = NULL;
+				da_elm_t * it2 = da_obj.first;
+				while (tp && !(tp->next == it)) tp = tp->next;
+				if (tp) tp->next = it;
+
+				if (da_obj.first == it) da_obj.first = tn;
+				tn->next = it;
+				it->next = tnn;
+
+				
+				while(it2 && !(it2->next == it)) it2 = it2->next;
+				if (it2) it2->next = tn;
+				bChange = true;
+			}
+			it = it->next;
+		}
+	}	
+}
+
+void da_obj_render(da_t* da)
+{
+	da_elm_t * it = da_obj.first;
+	orderObjArray();
 	while (it)
 	{
-		ch_render((charge_t*)it->elt);
+		if (it->elt)
+		{
+			switch (((UBase*)it->elt)->s)
+			{
+			case EObjectType_Unknown: break;
+			case EObjectType_Particle: 
+				DrawParticle();
+				break;
+			case EObjectType_ppp: 
+			case EObjectType_pp: 
+			case EObjectType_p: 
+			case EObjectType_m: 
+			case EObjectType_mm: 
+			case EObjectType_mmm:
+				ch_render((UCharge*)it->elt);
+			default: ;
+			}		
+		}
+		else
+			printf("Error : presence of nullptr obj in array\n");
 		it = it->next;
 	}
 }
@@ -516,8 +586,7 @@ void RenderGame()
 	SDL_RenderClear(gSdlRenderer);
 
 	DrawBackground();
-	DrawParticle();
-	da_ch_render(&da_ch);
+	da_obj_render(&da_obj);
 
 	SDL_RenderPresent(gSdlRenderer);
 }
@@ -525,8 +594,8 @@ void RenderGame()
 void ClearSDL()
 {
 	void * elt;
-	while ((elt = da_remove(&da_ch))) free(elt);
-	DestroyParticle();
+	while ((elt = da_remove(&da_obj))) free(elt);
+	//DestroyParticle();
 	DestroyTexture();
 	SDL_DestroyWindow(gSdlWindow);
 	SDL_Quit();
@@ -558,9 +627,9 @@ int main(int argc, char *argv[])
 	gtNEGCHARGE2 = LoadImage(N_TEXTURE_NEGCHARGE2);
 	gtNEGCHARGE3 = LoadImage(N_TEXTURE_NEGCHARGE3);
 
+	da_init(&da_obj);
 	InitBackgroundRender();
 	InitParticle();
-	da_init(&da_ch);
 
 	while (gIsRunning)
 	{
