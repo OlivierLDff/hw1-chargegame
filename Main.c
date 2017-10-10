@@ -430,9 +430,11 @@ SDL_Texture * ntt(const char * name)
 
 void p_init()
 {
-	gMp = malloc(sizeof(UCharge_t));
+	gMp = malloc(sizeof(UParticle_t));
 	da_push(&da_obj, gMp);
 	ub_init((UBase_t*)gMp, 50, 50, pxtod(32, false), pxtod(32, true), EObjectType_Particle);
+	gMp->dx = 0;
+	gMp->dy = 0;
 }
 
 void br_init()
@@ -812,7 +814,8 @@ void m_poll()
 			case EGameState_Unknown: break;
 			case EGameState_MainMenu: gbRun = false; break;
 			case EGameState_ScoreMenu: break;
-			case EGameState_FreeGame: menu_init(); break;
+			case EGameState_FreeGame: 
+				menu_init(); break;
 			case EGameState_LevelGame: break;
 			case EGameState_size: break;
 			default: ;
