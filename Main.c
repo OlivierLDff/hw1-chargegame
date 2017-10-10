@@ -71,45 +71,47 @@ typedef enum EObjectType
 
 typedef struct UBase
 {
+	/** \brief type of object */
 	EObjectType s;
+	/** \brief position in the x axis, between 0 and 100 */
 	double x;
+	/** \brief position in the x axis, between 0 and 100 */
 	double y;
-}UBase;
+	bool o;
+}UBase_t;
 
 typedef struct UCharge
 {
 	EObjectType s;
-	/** \brief position in the x axis, between 0 and 100 */
 	double x;
-	/** \brief position in the x axis, between 0 and 100 */
 	double y;
+	bool o;
 	/** \brief force that this charge apply in newton */
 	double f;
-}UCharge;
+}UCharge_t;
 
 typedef struct UParticle
 {
 	EObjectType s;
-	/** \brief position in the x axis, between 0 and 100 */
 	double x;
-	/** \brief position in the x axis, between 0 and 100 */
 	double y;
+	bool o;
 	/** \brief speed of the particle x axis */
 	double dx;
 	/** \brief speed of the particle y axis */
 	double dy;
-}UParticle;
+}UParticle_t;
 
 typedef union UObject
 {
-	UBase b;
-	UCharge c;
-	UParticle p;
-}UObject;
+	UBase_t b;
+	UCharge_t c;
+	UParticle_t p;
+}UObject_t;
 
-UBase * gdragCharge = NULL;
+UBase_t * gdragCharge = NULL;
 da_t da_obj;
-UParticle * gmp = NULL;
+UParticle_t * gmp = NULL;
 
 SDL_Texture * eotot(EObjectType e)
 {
@@ -126,7 +128,7 @@ SDL_Texture * eotot(EObjectType e)
 	}
 }
 
-void ch_init(UCharge * this, double x, double y)
+void ch_init(UCharge_t * this, double x, double y)
 {
 	this->x = x;
 	this->y = y;
@@ -134,7 +136,8 @@ void ch_init(UCharge * this, double x, double y)
 	this->s = EObjectType_p;
 }
 
-void ub_render(UBase * this)
+void 
+ub_render(UBase_t * this)
 {
 	SDL_Rect dest;
 
@@ -147,6 +150,8 @@ void ub_render(UBase * this)
 
 		if(gdragCharge == this) 
 			SDL_RenderCopy(gSdlRenderer, gtDRAGCHARGE, NULL, &dest);
+		else if(this->o)
+			SDL_RenderCopy(gSdlRenderer, gtOVERLAYCHARGE, NULL, &dest);
 
 		SDL_RenderCopy(gSdlRenderer, eotot(this->s), NULL, &dest);
 	}	
@@ -278,9 +283,9 @@ SDL_Texture * SDL_LoadImage(const char * name)
 
 void p_init()
 {
-	if (gmp == NULL) gmp = malloc(sizeof(UParticle));
+	if (gmp == NULL) gmp = malloc(sizeof(UParticle_t));
 	if (gmp)
-		memset(gmp, 0, sizeof(UParticle));
+		memset(gmp, 0, sizeof(UParticle_t));
 	else
 		fprintf(stderr, "Fail to allocate memory for gMainParticle\n");
 
@@ -327,11 +332,11 @@ void clamp60fps(unsigned int LastUpdateTick)
 	if (LastUpdateTick < ticks)
 		return;
 
-	if (ticks - LastUpdateTick <= 16)
-		SDL_Delay(16 - (ticks - LastUpdateTick));
+	if (ticks - LastUpdateTick <= 20)
+		SDL_Delay(20 - (ticks - LastUpdateTick));
 }
 
-bool ch_over(UCharge* elt, double x, double y)
+bool ch_over(UCharge_t* elt, double x, double y)
 {
 	double dx = 16.f * 100 / (double)gCurrentWidth;
 	double dy = 16.f * 100 / (double)gCurrentHeight;
@@ -343,22 +348,23 @@ bool ch_over(UCharge* elt, double x, double y)
 	return false;
 }
 
-UCharge* findCharge(int x, int y)
+UBase_t* findCharge(int x, int y)
 {
 	da_elm_t * it = da_obj.first;
+	UBase_t* res = NULL;
 	while(it)
 	{
-		EObjectType e = it->elt ? ((UBase*)it->elt)->s : EObjectType_Unknown;
-		if (e >= EObjectType_Particle && e <= EObjectType_mmm && ch_over((UCharge*)it->elt, x * 100 / (double)gCurrentWidth, y * 100 / (double)gCurrentHeight))
-			return (UCharge*)it->elt;
+		EObjectType e = it->elt ? ((UBase_t*)it->elt)->s : EObjectType_Unknown;
+		if (e >= EObjectType_Particle && e <= EObjectType_mmm && ch_over((UCharge_t*)it->elt, x * 100 / (double)gCurrentWidth, y * 100 / (double)gCurrentHeight))
+			res =(UBase_t*)it->elt;
 		it = it->next;
 	}
-	return NULL;
+	return res;
 }
 
 void ch_create(int x, int y)
 {
-	UCharge * c = malloc(sizeof(UCharge));
+	UCharge_t * c = malloc(sizeof(UCharge_t));
 	da_push(&da_obj, c);
 	ch_init(c, x*100/(double)gCurrentWidth, y*100/ (double)gCurrentHeight);
 }
@@ -378,10 +384,10 @@ void SDL_HandleLeftClick(bool bUp, int x, int y)
 	}
 	else
 	{
-		UCharge * c = findCharge(x, y);
+		UBase_t * c = findCharge(x, y);
 		if (c)
 		{
-			gdragCharge = c;
+			gdragCharge = (UBase_t*)c;
 		}
 	}
 }
@@ -390,10 +396,10 @@ void SDL_HandleRightClick(bool bUp, int x, int y)
 {
 	if (bUp)
 	{
-		UCharge * c = findCharge(x, y);
+		UBase_t * c = findCharge(x, y);
 		if (c)
 		{
-			EObjectType e = c ? ((UBase*)c)->s : EObjectType_Unknown;
+			EObjectType e = c ? ((UBase_t*)c)->s : EObjectType_Unknown;
 			if (e >= EObjectType_ppp && e <= EObjectType_mmm)
 			{
 				void * res = da_removeat(&da_obj, c);
@@ -406,8 +412,8 @@ void SDL_HandleRightClick(bool bUp, int x, int y)
 
 void SDL_HandleMiddleClick(bool bUp, int x, int y)
 {
-	UCharge * c = findCharge(x, y);
-	EObjectType e = c ? ((UBase*)c)->s : EObjectType_Unknown;
+	UBase_t * c = findCharge(x, y);
+	EObjectType e = c ? ((UBase_t*)c)->s : EObjectType_Unknown;
 	if(c && e >= EObjectType_ppp && e <= EObjectType_mmm)
 	{	
 		if (bUp)
@@ -455,6 +461,17 @@ void m_init()
 	p_init();
 }
 
+void clearHighlightf()
+{
+	da_elm_t * it = da_obj.first;
+	while(it)
+	{
+		if (it->elt)
+			((UBase_t *)it->elt)->o = false;
+		it = it->next;
+	}
+}
+
 void SDL_PollInput()
 {
 	// event handling
@@ -487,12 +504,21 @@ void SDL_PollInput()
 		}
 		if(e.type == SDL_MOUSEMOTION)
 		{
+			clearHighlightf();
 			int x, y;
 			SDL_GetMouseState(&x, &y);
 			if(gdragCharge)
 			{
 				gdragCharge->x = x * 100 / (double)gCurrentWidth;
 				gdragCharge->y = y * 100 / (double)gCurrentHeight;
+			}
+			else
+			{
+				UBase_t * b = findCharge(x, y);
+				if(b)
+				{
+					b->o = true;
+				}
 			}
 		}
 		if (e.type == SDL_MOUSEWHEEL)
@@ -521,7 +547,7 @@ void SDL_PollInput()
 
 void p_render()
 {
-	ub_render((UBase*)gmp);
+	ub_render((UBase_t*)gmp);
 }
 
 double getffeo(EObjectType object)
@@ -560,7 +586,7 @@ const double MAX_ACCELERATION = 0.0005f;
 const double MAX_SPEED = 0.1f;
 const double PARTICLE_WEIGHT_CONST = 0.005f;
 const double AIR_FRICTION = 0.001f;
-bool ftoa(UCharge * c, double* fx, double* fy, double x, double y)
+bool ftoa(UCharge_t * c, double* fx, double* fy, double x, double y)
 {
 	if (!(fx && fy)) return false;
 	double f = getffeo(c->s);
@@ -577,7 +603,7 @@ void m_update(uint32_t delta)
 {
 	int f = 0;
 	if (!delta) return;
-	if (gdragCharge == (UBase*)gmp)
+	if (gdragCharge == (UBase_t*)gmp)
 	{
 		static double lastx = 0;
 		static double lasty = 0;
@@ -594,18 +620,16 @@ void m_update(uint32_t delta)
 	{
 		double fx = 0;
 		double fy = 0;
-		double vx = 0;
-		double vy = 0;
+		double lastx = 0;
+		double lasty = 0;
 
-		vx = gmp->x;
-		vy = gmp->y;
+		lastx = gmp->x;
+		lasty = gmp->y;
 
-		EObjectType e = it->elt ? ((UBase*)it->elt)->s : EObjectType_Unknown;
-		if(e >= EObjectType_ppp && e <= EObjectType_mmm)
-		{			
-			if(ftoa((UCharge*)it->elt, &fx, &fy, gmp->x, gmp->y))
-			printf("force x = %lf, y = %lf\n", fx, fy);	
-		}
+		EObjectType e = it->elt ? ((UBase_t*)it->elt)->s : EObjectType_Unknown;
+		if (e >= EObjectType_ppp && e <= EObjectType_mmm)
+			ftoa((UCharge_t*)it->elt, &fx, &fy, gmp->x, gmp->y);
+
 		fx -= gmp->dx*AIR_FRICTION;
 		fy -= gmp->dy*AIR_FRICTION;
 
@@ -622,8 +646,8 @@ void m_update(uint32_t delta)
 		clamp(&gmp->y, 0.f, 100.f);
 
 
-		gmp->dx = (gmp->x - vx)/delta;
-		gmp->dy = (gmp->y - vy)/delta;
+		gmp->dx = (gmp->x - lastx)/delta;
+		gmp->dy = (gmp->y - lasty)/delta;
 
 		clamp(&gmp->dx, -MAX_SPEED, MAX_SPEED);
 		clamp(&gmp->dy, -MAX_SPEED, MAX_SPEED);
@@ -648,7 +672,7 @@ void da_obj_order()
 		bChange = false; 
 		while (it)
 		{
-			if (it->elt && it->next	&& it->next->elt && ((UBase *)it->elt)->y > ((UBase *)it->next->elt)->y)
+			if (it->elt && it->next	&& it->next->elt && ((UBase_t *)it->elt)->y > ((UBase_t *)it->next->elt)->y)
 			{
 				tnn = it->next->next;
 				tn = it->next;
@@ -678,7 +702,7 @@ void da_obj_render(da_t* da)
 	{
 		if (it->elt)
 		{
-			switch (((UBase*)it->elt)->s)
+			switch (((UBase_t*)it->elt)->s)
 			{
 			case EObjectType_Unknown: break;
 			case EObjectType_Particle: 
@@ -690,7 +714,7 @@ void da_obj_render(da_t* da)
 			case EObjectType_m: 
 			case EObjectType_mm: 
 			case EObjectType_mmm:
-				ub_render((UCharge*)it->elt);
+				ub_render((UBase_t*)it->elt);
 			default: ;
 			}		
 		}
