@@ -10,40 +10,9 @@ The program should also score the player (e.g. the number of trials to hit the t
 
 ## Build
 
-```
+```sh
 mkdir build
 cd build
-cmake ..
-make -DSDL2_DIR=pathToSDl
+cmake -DSDL2_DIR=./SDL2 ..
+make
 ```
-
-## Organization
-
-### Map
-
-* Begin point
-* End point
-* Initial speed for particle
-* List of wall
-
-### Wall
-
-* xbegin
-* ybegin
-* xend
-* yend
-
-### Charge
-
-* x
-* y
-* f
-
-$$
-\sum{ma}=\sum{f}
-$$
-
-
-
-- [ ] Structure particle
-
