@@ -23,12 +23,14 @@ const char N_TEXTURE_CHARGE3[] = "./images/charge3.png";
 const char N_TEXTURE_NEGCHARGE[] = "./images/negcharge.png";
 const char N_TEXTURE_NEGCHARGE2[] = "./images/negcharge2.png";
 const char N_TEXTURE_NEGCHARGE3[] = "./images/negcharge3.png";
+const char N_TEXTURE_DRAGCHARGE[] = "./images/chargeDrag.png";
+const char N_TEXTURE_SELCHARGE[] = "./images/chargeSelection.png";
 
-SDL_Texture * LoadImage(const char * name);
+SDL_Texture * SDL_LoadImage(const char * name);
 
 bool gIsRunning = true;
 SDL_Renderer* gSdlRenderer = NULL;
-SDL_Texture * gSdlTBackground = NULL;
+SDL_Texture * gtBACKGROUND = NULL;
 SDL_Window* gSdlWindow = NULL;
 
 SDL_Texture * gtPARTICLE = NULL;
@@ -38,6 +40,22 @@ SDL_Texture * gtCHARGE3 = NULL;
 SDL_Texture * gtNEGCHARGE1 = NULL;
 SDL_Texture * gtNEGCHARGE2 = NULL;
 SDL_Texture * gtNEGCHARGE3 = NULL;
+
+SDL_Texture * gtOVERLAYCHARGE = NULL;
+SDL_Texture * gtDRAGCHARGE = NULL;
+
+typedef struct da_elm_t
+{
+	struct da_elm_t * next;
+	void * elt;
+} da_elm_t;
+
+typedef struct da_t
+{
+	struct da_elm_t * first;
+	size_t size;
+} da_t;
+
 
 typedef enum EObjectType
 {
@@ -76,8 +94,9 @@ typedef struct UParticle
 	double x;
 	/** \brief position in the x axis, between 0 and 100 */
 	double y;
-
+	/** \brief speed of the particle x axis */
 	double dx;
+	/** \brief speed of the particle y axis */
 	double dy;
 }UParticle;
 
@@ -89,8 +108,10 @@ typedef union UObject
 }UObject;
 
 UBase * gdragCharge = NULL;
+da_t da_obj;
+UParticle * gmp = NULL;
 
-SDL_Texture * LoadCorrectImageParticle(EObjectType e)
+SDL_Texture * eotot(EObjectType e)
 {
 	switch (e)
 	{
@@ -109,16 +130,11 @@ void ch_init(UCharge * this, double x, double y)
 {
 	this->x = x;
 	this->y = y;
-	this->f = 50;
+	this->f = 0;
 	this->s = EObjectType_p;
 }
 
-void ch_handleEvent()
-{
-	
-}
-
-void ch_render(UCharge * this)
+void ub_render(UBase * this)
 {
 	SDL_Rect dest;
 
@@ -129,21 +145,12 @@ void ch_render(UCharge * this)
 		dest.x = (int)(this->x*gCurrentWidth / 100 - 16);
 		dest.y = (int)(this->y*gCurrentHeight / 100 - 16);
 
-		SDL_RenderCopy(gSdlRenderer, LoadCorrectImageParticle(this->s), NULL, &dest);
+		if(gdragCharge == this) 
+			SDL_RenderCopy(gSdlRenderer, gtDRAGCHARGE, NULL, &dest);
+
+		SDL_RenderCopy(gSdlRenderer, eotot(this->s), NULL, &dest);
 	}	
 }
-
-typedef struct da_elm_t
-{
-	struct da_elm_t * next;
-	void * elt;
-} da_elm_t;
-
-typedef struct da_t
-{
-	struct da_elm_t * first;
-	size_t size;
-} da_t;
 
 void da_init(da_t * this)
 {
@@ -248,10 +255,7 @@ void * da_remove(da_t * this)
 	return NULL;
 }
 
-da_t da_obj;
-UParticle * gmp = NULL;
-
-SDL_Texture * LoadImage(const char * name)
+SDL_Texture * SDL_LoadImage(const char * name)
 {
 	SDL_Surface * loadedImage = NULL;
 	SDL_Texture * texture = NULL;
@@ -272,7 +276,7 @@ SDL_Texture * LoadImage(const char * name)
 	return texture;
 }
 
-void InitParticle()
+void p_init()
 {
 	if (gmp == NULL) gmp = malloc(sizeof(UParticle));
 	if (gmp)
@@ -294,17 +298,17 @@ void DestroyParticle()
 	if (gmp) free(gmp);
 }*/
 
-void InitBackgroundRender()
+void br_init()
 {
-	gSdlTBackground = LoadImage(N_TEXTURE_BACKGROUND);
+	gtBACKGROUND = SDL_LoadImage(N_TEXTURE_BACKGROUND);
 }
 
-void DestroyTexture()
+void br_destroy()
 {
-	if(gSdlTBackground) SDL_DestroyTexture(gSdlTBackground);
+	if(gtBACKGROUND) SDL_DestroyTexture(gtBACKGROUND);
 }
 
-void DrawBackground()
+void br_render()
 {
 	SDL_Rect dest;
 
@@ -313,10 +317,10 @@ void DrawBackground()
 	dest.x = 0;
 	dest.y = 0;
 
-	SDL_RenderCopy(gSdlRenderer, gSdlTBackground, NULL, &dest);
+	SDL_RenderCopy(gSdlRenderer, gtBACKGROUND, NULL, &dest);
 }
 
-void LimitTo60Fps(unsigned int LastUpdateTick)
+void clamp60fps(unsigned int LastUpdateTick)
 {
 	uint32_t ticks = SDL_GetTicks();
 
@@ -339,7 +343,7 @@ bool ch_over(UCharge* elt, double x, double y)
 	return false;
 }
 
-UCharge* OverCharge(int x, int y)
+UCharge* findCharge(int x, int y)
 {
 	da_elm_t * it = da_obj.first;
 	while(it)
@@ -352,14 +356,14 @@ UCharge* OverCharge(int x, int y)
 	return NULL;
 }
 
-void CreateCharge(int x, int y)
+void ch_create(int x, int y)
 {
 	UCharge * c = malloc(sizeof(UCharge));
 	da_push(&da_obj, c);
 	ch_init(c, x*100/(double)gCurrentWidth, y*100/ (double)gCurrentHeight);
 }
 
-void HandleLeftClick(bool bUp, int x, int y)
+void SDL_HandleLeftClick(bool bUp, int x, int y)
 {
 	if(bUp)
 	{
@@ -369,12 +373,12 @@ void HandleLeftClick(bool bUp, int x, int y)
 		}
 		else
 		{
-			CreateCharge(x, y);
+			ch_create(x, y);
 		}
 	}
 	else
 	{
-		UCharge * c = OverCharge(x, y);
+		UCharge * c = findCharge(x, y);
 		if (c)
 		{
 			gdragCharge = c;
@@ -382,11 +386,11 @@ void HandleLeftClick(bool bUp, int x, int y)
 	}
 }
 
-void HandleRightClick(bool bUp, int x, int y)
+void SDL_HandleRightClick(bool bUp, int x, int y)
 {
 	if (bUp)
 	{
-		UCharge * c = OverCharge(x, y);
+		UCharge * c = findCharge(x, y);
 		if (c)
 		{
 			EObjectType e = c ? ((UBase*)c)->s : EObjectType_Unknown;
@@ -400,9 +404,9 @@ void HandleRightClick(bool bUp, int x, int y)
 	}
 }
 
-void HandleMiddleClick(bool bUp, int x, int y)
+void SDL_HandleMiddleClick(bool bUp, int x, int y)
 {
-	UCharge * c = OverCharge(x, y);
+	UCharge * c = findCharge(x, y);
 	EObjectType e = c ? ((UBase*)c)->s : EObjectType_Unknown;
 	if(c && e >= EObjectType_ppp && e <= EObjectType_mmm)
 	{	
@@ -423,7 +427,7 @@ void HandleMiddleClick(bool bUp, int x, int y)
 	}
 }
 
-void Init()
+void m_init()
 {
 	/*Open the window, by default the window is centered*/
 	gSdlWindow = SDL_CreateWindow(GAME_TITLE,
@@ -436,20 +440,22 @@ void Init()
 	gSdlRenderer = SDL_CreateRenderer(gSdlWindow, -1, SDL_RENDERER_ACCELERATED);
 	if (!gSdlRenderer) fprintf(stderr, "Can't create gSdlRenderer\n");
 
-	gtPARTICLE = LoadImage(N_TEXTURE_PARTICLE);
-	gtCHARGE1 = LoadImage(N_TEXTURE_CHARGE);
-	gtCHARGE2 = LoadImage(N_TEXTURE_CHARGE2);
-	gtCHARGE3 = LoadImage(N_TEXTURE_CHARGE3);
-	gtNEGCHARGE1 = LoadImage(N_TEXTURE_NEGCHARGE);
-	gtNEGCHARGE2 = LoadImage(N_TEXTURE_NEGCHARGE2);
-	gtNEGCHARGE3 = LoadImage(N_TEXTURE_NEGCHARGE3);
+	gtPARTICLE = SDL_LoadImage(N_TEXTURE_PARTICLE);
+	gtCHARGE1 = SDL_LoadImage(N_TEXTURE_CHARGE);
+	gtCHARGE2 = SDL_LoadImage(N_TEXTURE_CHARGE2);
+	gtCHARGE3 = SDL_LoadImage(N_TEXTURE_CHARGE3);
+	gtNEGCHARGE1 = SDL_LoadImage(N_TEXTURE_NEGCHARGE);
+	gtNEGCHARGE2 = SDL_LoadImage(N_TEXTURE_NEGCHARGE2);
+	gtNEGCHARGE3 = SDL_LoadImage(N_TEXTURE_NEGCHARGE3);
+	gtDRAGCHARGE = SDL_LoadImage(N_TEXTURE_DRAGCHARGE);
+	gtOVERLAYCHARGE = SDL_LoadImage(N_TEXTURE_SELCHARGE);
 
 	da_init(&da_obj);
-	InitBackgroundRender();
-	InitParticle();
+	br_init();
+	p_init();
 }
 
-void PollInput()
+void SDL_PollInput()
 {
 	// event handling
 	SDL_Event e;
@@ -471,10 +477,10 @@ void PollInput()
 			switch (e.button.button)
 			{
 			case SDL_BUTTON_LEFT:
-				HandleLeftClick(e.type == SDL_MOUSEBUTTONUP, x, y);
+				SDL_HandleLeftClick(e.type == SDL_MOUSEBUTTONUP, x, y);
 				break;
 			case SDL_BUTTON_RIGHT:
-				HandleRightClick(e.type == SDL_MOUSEBUTTONUP, x, y);
+				SDL_HandleRightClick(e.type == SDL_MOUSEBUTTONUP, x, y);
 				break;
 			default: ;
 			}
@@ -495,11 +501,11 @@ void PollInput()
 			SDL_GetMouseState(&x, &y);
 			if (e.wheel.y == 1) // scroll up
 			{
-				HandleMiddleClick(true, x, y);
+				SDL_HandleMiddleClick(true, x, y);
 			}
 			else if (e.wheel.y == -1) // scroll down
 			{
-				HandleMiddleClick(false, x, y);
+				SDL_HandleMiddleClick(false, x, y);
 			}
 		}
 		if (e.type == SDL_WINDOWEVENT) //windows resize
@@ -513,21 +519,12 @@ void PollInput()
 	}
 }
 
-void DrawParticle()
+void p_render()
 {
-	SDL_Rect dest;
-
-	if(gmp->x >= 0 && gmp->y >= 0 && gmp->x <= 100 && gmp->y <= 100)
-
-	dest.w = 32;
-	dest.h = 32;
-	dest.x = (int)(gmp->x*gCurrentWidth/100 - 16);
-	dest.y = (int)(gmp->y*gCurrentHeight / 100 - 16);
-
-	SDL_RenderCopy(gSdlRenderer, LoadCorrectImageParticle(gmp->s), NULL, &dest);
+	ub_render((UBase*)gmp);
 }
 
-double GetForceFromEnum(EObjectType object)
+double getffeo(EObjectType object)
 {
 	double f = 0;
 	switch(object)
@@ -563,10 +560,10 @@ const double MAX_ACCELERATION = 0.0005f;
 const double MAX_SPEED = 0.1f;
 const double PARTICLE_WEIGHT_CONST = 0.005f;
 const double AIR_FRICTION = 0.001f;
-bool ComputeFd(UCharge * c, double* fx, double* fy, double x, double y)
+bool ftoa(UCharge * c, double* fx, double* fy, double x, double y)
 {
 	if (!(fx && fy)) return false;
-	double f = GetForceFromEnum(c->s);
+	double f = getffeo(c->s);
 	double xd = x - c->x;
 	double yd = y - c->y;
 	double d = sqrt(xd*xd + yd*yd);
@@ -576,7 +573,7 @@ bool ComputeFd(UCharge * c, double* fx, double* fy, double x, double y)
 	return true;
 }
 
-void UpdateGame(uint32_t delta)
+void m_update(uint32_t delta)
 {
 	int f = 0;
 	if (!delta) return;
@@ -606,7 +603,7 @@ void UpdateGame(uint32_t delta)
 		EObjectType e = it->elt ? ((UBase*)it->elt)->s : EObjectType_Unknown;
 		if(e >= EObjectType_ppp && e <= EObjectType_mmm)
 		{			
-			if(ComputeFd((UCharge*)it->elt, &fx, &fy, gmp->x, gmp->y))
+			if(ftoa((UCharge*)it->elt, &fx, &fy, gmp->x, gmp->y))
 			printf("force x = %lf, y = %lf\n", fx, fy);	
 		}
 		fx -= gmp->dx*AIR_FRICTION;
@@ -635,7 +632,7 @@ void UpdateGame(uint32_t delta)
 	}
 }
 
-void orderObjArray()
+void da_obj_order()
 {
 	da_elm_t * tnn;
 	da_elm_t * tn;
@@ -676,7 +673,7 @@ void orderObjArray()
 void da_obj_render(da_t* da)
 {
 	da_elm_t * it = da_obj.first;
-	orderObjArray();
+	da_obj_order();
 	while (it)
 	{
 		if (it->elt)
@@ -685,7 +682,7 @@ void da_obj_render(da_t* da)
 			{
 			case EObjectType_Unknown: break;
 			case EObjectType_Particle: 
-				DrawParticle();
+				p_render();
 				break;
 			case EObjectType_ppp: 
 			case EObjectType_pp: 
@@ -693,7 +690,7 @@ void da_obj_render(da_t* da)
 			case EObjectType_m: 
 			case EObjectType_mm: 
 			case EObjectType_mmm:
-				ch_render((UCharge*)it->elt);
+				ub_render((UCharge*)it->elt);
 			default: ;
 			}		
 		}
@@ -703,21 +700,21 @@ void da_obj_render(da_t* da)
 	}
 }
 
-void RenderGame()
+void m_render()
 {
 	SDL_RenderClear(gSdlRenderer);
 
-	DrawBackground();
+	br_render();
 	da_obj_render(&da_obj);
 
 	SDL_RenderPresent(gSdlRenderer);
 }
 
-void Clear()
+void m_clear()
 {
 	void * elt;
 	while ((elt = da_remove(&da_obj))) free(elt);
-	DestroyTexture();
+	br_destroy();
 	SDL_DestroyWindow(gSdlWindow);
 	SDL_Quit();
 }
@@ -735,19 +732,19 @@ int main(int argc, char *argv[])
 		return false;
 	}
 
-	Init();
+	m_init();
 	while (gIsRunning)
 	{
 		uint32_t CurrentTick = SDL_GetTicks();
-		PollInput();
-		UpdateGame(CurrentTick - LastTick);
-		RenderGame();
+		SDL_PollInput();
+		m_update(CurrentTick - LastTick);
+		m_render();
 
-		LimitTo60Fps(CurrentTick);
+		clamp60fps(CurrentTick);
 		LastTick = CurrentTick;
 	}
 
-	Clear();
+	m_clear();
 
 	return 0;
 }
