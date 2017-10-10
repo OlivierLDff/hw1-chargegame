@@ -81,14 +81,14 @@ typedef struct UParticle
 	double dy;
 }UParticle;
 
-union UObject
+typedef union UObject
 {
 	UBase b;
 	UCharge c;
 	UParticle p;
-};
+}UObject;
 
-UCharge * gdragCharge = NULL;
+UBase * gdragCharge = NULL;
 
 SDL_Texture * LoadCorrectImageParticle(EObjectType e)
 {
@@ -282,6 +282,8 @@ void InitParticle()
 
 	gmp->x = 50;
 	gmp->y = 50;
+	gmp->dx = 0;
+	gmp->dy = 0;
 	gmp->s = EObjectType_Particle;
 
 	da_push(&da_obj, gmp);
@@ -387,9 +389,13 @@ void HandleRightClick(bool bUp, int x, int y)
 		UCharge * c = OverCharge(x, y);
 		if (c)
 		{
-			void * res = da_removeat(&da_obj, c);
-			if (res == c) free(c);
-			else fprintf(stderr, "Error removing charge\n");
+			EObjectType e = c ? ((UBase*)c)->s : EObjectType_Unknown;
+			if (e >= EObjectType_ppp && e <= EObjectType_mmm)
+			{
+				void * res = da_removeat(&da_obj, c);
+				if (res == c) free(c);
+				else fprintf(stderr, "Error removing charge\n");
+			}		
 		}
 	}
 }
@@ -397,9 +403,10 @@ void HandleRightClick(bool bUp, int x, int y)
 void HandleMiddleClick(bool bUp, int x, int y)
 {
 	UCharge * c = OverCharge(x, y);
-	if(c)
-	{
-		if(bUp)
+	EObjectType e = c ? ((UBase*)c)->s : EObjectType_Unknown;
+	if(c && e >= EObjectType_ppp && e <= EObjectType_mmm)
+	{	
+		if (bUp)
 		{
 			if (c->s == EObjectType_ppp)
 				c->s = EObjectType_mmm;
@@ -416,7 +423,7 @@ void HandleMiddleClick(bool bUp, int x, int y)
 	}
 }
 
-void InitWindow()
+void Init()
 {
 	/*Open the window, by default the window is centered*/
 	gSdlWindow = SDL_CreateWindow(GAME_TITLE,
@@ -424,8 +431,22 @@ void InitWindow()
 		SDL_WINDOWPOS_CENTERED,
 		SCREEN_WIDTH, SCREEN_HEIGHT,
 		SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	if (!gSdlWindow) fprintf(stderr, "Can't create gSdlWindow\n");
 
 	gSdlRenderer = SDL_CreateRenderer(gSdlWindow, -1, SDL_RENDERER_ACCELERATED);
+	if (!gSdlRenderer) fprintf(stderr, "Can't create gSdlRenderer\n");
+
+	gtPARTICLE = LoadImage(N_TEXTURE_PARTICLE);
+	gtCHARGE1 = LoadImage(N_TEXTURE_CHARGE);
+	gtCHARGE2 = LoadImage(N_TEXTURE_CHARGE2);
+	gtCHARGE3 = LoadImage(N_TEXTURE_CHARGE3);
+	gtNEGCHARGE1 = LoadImage(N_TEXTURE_NEGCHARGE);
+	gtNEGCHARGE2 = LoadImage(N_TEXTURE_NEGCHARGE2);
+	gtNEGCHARGE3 = LoadImage(N_TEXTURE_NEGCHARGE3);
+
+	da_init(&da_obj);
+	InitBackgroundRender();
+	InitParticle();
 }
 
 void PollInput()
@@ -506,42 +527,143 @@ void DrawParticle()
 	SDL_RenderCopy(gSdlRenderer, LoadCorrectImageParticle(gmp->s), NULL, &dest);
 }
 
+double GetForceFromEnum(EObjectType object)
+{
+	double f = 0;
+	switch(object)
+	{
+	case EObjectType_Unknown: break;
+	case EObjectType_Particle: break;
+	case EObjectType_ppp: f = 3.f; break;
+	case EObjectType_pp: f = 2.f; break;
+	case EObjectType_p:  f = 1.f; break;
+	case EObjectType_m: f = -1.f; break;
+	case EObjectType_mm: f = -2.f; break;
+	case EObjectType_mmm: f = -3.f; break;
+	default: ;
+	}
+	return f;
+}
+void clamp(double* p, double from, double to)
+{
+	if (!p) return;
+	if (from < to)
+	{
+		if (*p < from) *p = from;
+		if (*p > to) *p = to;
+	}
+	else
+	{
+		if (*p > from) *p = from;
+		if (*p < to) *p = to;
+	}
+}
+
+const double MAX_ACCELERATION = 0.0005f;
+const double MAX_SPEED = 0.1f;
+const double PARTICLE_WEIGHT_CONST = 0.005f;
+const double AIR_FRICTION = 0.001f;
+bool ComputeFd(UCharge * c, double* fx, double* fy, double x, double y)
+{
+	if (!(fx && fy)) return false;
+	double f = GetForceFromEnum(c->s);
+	double xd = x - c->x;
+	double yd = y - c->y;
+	double d = sqrt(xd*xd + yd*yd);
+	f = (d > 5.f) ? f / d : 0.f;
+	*fx += f * (d ? xd / d : 0);
+	*fy += f *  (d ? yd / d : 0);
+	return true;
+}
+
 void UpdateGame(uint32_t delta)
 {
 	int f = 0;
+	if (!delta) return;
+	if (gdragCharge == (UBase*)gmp)
+	{
+		static double lastx = 0;
+		static double lasty = 0;
+		gmp->dx = (gmp->x - lastx) / delta;
+		gmp->dy = (gmp->y - lasty) / delta;
+		clamp(&gmp->dx, -MAX_SPEED, MAX_SPEED);
+		clamp(&gmp->dy, -MAX_SPEED, MAX_SPEED);
+		lastx = gmp->x;
+		lasty = gmp->y;
+		return;
+	}
 	da_elm_t * it = da_obj.first;
 	while(it)
 	{
-		//f += ch_getForceAppliedtoParticle();
+		double fx = 0;
+		double fy = 0;
+		double vx = 0;
+		double vy = 0;
+
+		vx = gmp->x;
+		vy = gmp->y;
+
+		EObjectType e = it->elt ? ((UBase*)it->elt)->s : EObjectType_Unknown;
+		if(e >= EObjectType_ppp && e <= EObjectType_mmm)
+		{			
+			if(ComputeFd((UCharge*)it->elt, &fx, &fy, gmp->x, gmp->y))
+			printf("force x = %lf, y = %lf\n", fx, fy);	
+		}
+		fx -= gmp->dx*AIR_FRICTION;
+		fy -= gmp->dy*AIR_FRICTION;
+
+		fx *= PARTICLE_WEIGHT_CONST;
+		fy *= PARTICLE_WEIGHT_CONST;
+
+		clamp(&fx, -MAX_ACCELERATION, MAX_ACCELERATION);
+		clamp(&fy, -MAX_ACCELERATION, MAX_ACCELERATION);
+
+		gmp->x += gmp->dx*delta + fx*delta*delta;
+		gmp->y += gmp->dy*delta + fy*delta*delta;
+
+		clamp(&gmp->x, 0.f, 100.f);
+		clamp(&gmp->y, 0.f, 100.f);
+
+
+		gmp->dx = (gmp->x - vx)/delta;
+		gmp->dy = (gmp->y - vy)/delta;
+
+		clamp(&gmp->dx, -MAX_SPEED, MAX_SPEED);
+		clamp(&gmp->dy, -MAX_SPEED, MAX_SPEED);
+
 		it = it->next;
 	}
 }
 
 void orderObjArray()
 {
+	da_elm_t * tnn;
+	da_elm_t * tn;
+	da_elm_t * tp; 
+	da_elm_t * it;
+	da_elm_t * it2;
 	bool bChange = true;
 	while(bChange) //bubble sort
 	{
 		if (da_obj.size == 2)
 			bChange = true;
-		da_elm_t * it = da_obj.first;
+		it = da_obj.first;
 		bChange = false; 
 		while (it)
 		{
 			if (it->elt && it->next	&& it->next->elt && ((UBase *)it->elt)->y > ((UBase *)it->next->elt)->y)
 			{
-				da_elm_t * tnn = it->next->next;
-				da_elm_t * tn = it->next;
-				da_elm_t * tp = NULL;
-				da_elm_t * it2 = da_obj.first;
+				tnn = it->next->next;
+				tn = it->next;
+				tp = NULL;
+				it2 = da_obj.first;
 				while (tp && !(tp->next == it)) tp = tp->next;
 				if (tp) tp->next = it;
 
 				if (da_obj.first == it) da_obj.first = tn;
 				tn->next = it;
 				it->next = tnn;
-
-				
+	
 				while(it2 && !(it2->next == it)) it2 = it2->next;
 				if (it2) it2->next = tn;
 				bChange = true;
@@ -591,11 +713,10 @@ void RenderGame()
 	SDL_RenderPresent(gSdlRenderer);
 }
 
-void ClearSDL()
+void Clear()
 {
 	void * elt;
 	while ((elt = da_remove(&da_obj))) free(elt);
-	//DestroyParticle();
 	DestroyTexture();
 	SDL_DestroyWindow(gSdlWindow);
 	SDL_Quit();
@@ -614,23 +735,7 @@ int main(int argc, char *argv[])
 		return false;
 	}
 
-	InitWindow();
-	SDL_SetRenderDrawColor(gSdlRenderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
-	SDL_RenderClear(gSdlRenderer);
-	SDL_RenderPresent(gSdlRenderer);
-
-	gtPARTICLE = LoadImage(N_TEXTURE_PARTICLE);
-	gtCHARGE1 = LoadImage(N_TEXTURE_CHARGE);
-	gtCHARGE2 = LoadImage(N_TEXTURE_CHARGE2);
-	gtCHARGE3 = LoadImage(N_TEXTURE_CHARGE3);
-	gtNEGCHARGE1 = LoadImage(N_TEXTURE_NEGCHARGE);
-	gtNEGCHARGE2 = LoadImage(N_TEXTURE_NEGCHARGE2);
-	gtNEGCHARGE3 = LoadImage(N_TEXTURE_NEGCHARGE3);
-
-	da_init(&da_obj);
-	InitBackgroundRender();
-	InitParticle();
-
+	Init();
 	while (gIsRunning)
 	{
 		uint32_t CurrentTick = SDL_GetTicks();
@@ -642,7 +747,7 @@ int main(int argc, char *argv[])
 		LastTick = CurrentTick;
 	}
 
-	ClearSDL();
+	Clear();
 
 	return 0;
 }
