@@ -27,6 +27,7 @@ const char N_TEXTURE_NEGCHARGE3[] = "./images/negcharge3.png";
 const char N_TEXTURE_DRAGCHARGE[] = "./images/chargeDrag.png";
 const char N_TEXTURE_SELCHARGE[] = "./images/chargeSelection.png";
 const char N_TEXTURE_FLAG[] = "./images/flagicon.png";
+const char N_TEXTURE_BEGIN[] = "./images/begin.png";
 
 const double MAX_ACCELERATION = 0.0005f;
 const double MAX_SPEED = 0.1f;
@@ -81,6 +82,7 @@ SDL_Texture * gtNEGCHARGE3 = NULL;
 SDL_Texture * gtOVERLAYCHARGE = NULL;
 SDL_Texture * gtDRAGCHARGE = NULL;
 SDL_Texture * gtFLAG = NULL;
+SDL_Texture * gtBEGIN = NULL;
 
 typedef struct da_elm_t
 {
@@ -141,6 +143,7 @@ typedef enum EObjectType
 	EObjectType_mm,
 	EObjectType_mmm,
 	EObjectType_flag,
+	EObjectType_begin,
 	EObjectType_Text,
 	EObjectType_size,
 }EObjectType;
@@ -157,7 +160,10 @@ typedef struct UBase
 	double w;
 	/** \brief height of the sprite */
 	double h;
-	bool o;
+	/** \brief is the object currently overlay by the pointer (mouse) */
+	bool bO;
+	/** \brief can be moved or delete ? used in the level game mode /// level editor */
+	bool bMoD;
 }UBase_t;
 
 typedef struct UTextBase
@@ -186,6 +192,11 @@ typedef struct UCharge
 	double f;
 }UCharge_t;
 
+typedef struct UGE
+{
+	UBase_t b;
+}UGE_t;
+
 typedef struct UParticle
 {
 	UBase_t b;
@@ -200,6 +211,7 @@ typedef union UObject
 {
 	UBase_t b;
 	UCharge_t c;
+	UGE_t ge;
 	UParticle_t p;
 	UText_t t;
 }UObject_t;
@@ -249,6 +261,7 @@ SDL_Texture * eotot(EObjectType e)
 	case EObjectType_mm: return gtNEGCHARGE2;
 	case EObjectType_mmm: return gtNEGCHARGE3;
 	case EObjectType_flag: return gtFLAG;
+	case EObjectType_begin: return gtBEGIN;
 	case EObjectType_Unknown:
 	case EObjectType_size:
 	default:;
@@ -271,7 +284,7 @@ void ub_init(UBase_t * this, const double x, const double y, const double h, con
 {
 	if (this)
 	{
-		this->o = 0;
+		this->bO = 0;
 		this->x = x;
 		this->y = y;
 		this->w = w;
@@ -287,6 +300,30 @@ void ch_init(UCharge_t * this, const double x, const double y)
 		this->f = 0;
 }
 
+bool objTExist(EObjectType type)
+{
+	da_elm_t * it = da_obj.first;
+	while (it)
+	{
+		if (it->elt && ((UBase_t *)it->elt)->s == type) return true;
+		it = it->next;
+	}
+	return false;
+}
+
+void uge_create(const double x, const double y, EObjectType type)
+{
+	if (type != EObjectType_begin && type != EObjectType_flag) return;
+	
+	if(objTExist(type)) type = type == EObjectType_begin ? EObjectType_flag : EObjectType_begin;
+	if (objTExist(type)) return;
+
+	UGE_t * e = malloc(sizeof(UGE_t));
+	ub_init((UBase_t *)e, x, y, pxtod(32, false), pxtod(32, true), type);
+	da_push(&da_obj, e);
+	printf("create uge\n");
+}
+
 void ub_render(UBase_t * this)
 {
 	SDL_Rect dest;
@@ -300,7 +337,7 @@ void ub_render(UBase_t * this)
 
 		if(gDragObj == this) 
 			SDL_RenderCopy(gSdlRenderer, gtDRAGCHARGE, NULL, &dest);
-		else if(this->o)
+		else if(this->bO)
 			SDL_RenderCopy(gSdlRenderer, gtOVERLAYCHARGE, NULL, &dest);
 
 		SDL_RenderCopy(gSdlRenderer, eotot(this->s), NULL, &dest);
@@ -505,11 +542,12 @@ void ch_create(int x, int y)
 void SDL_HandleLeftClick(bool bUp, int x, int y)
 {
 	UBase_t * obj = findOverlayObj(x, y);
+	
 	switch (gState)
 	{
 	case EGameState_ScoreMenu:
 	case EGameState_MainMenu:
-		if (bUp && obj->s == EObjectType_Text && ((UTextBase_t *)obj)->bTextButton)
+		if (bUp && obj && obj->s == EObjectType_Text && ((UTextBase_t *)obj)->bTextButton)
 			utb_click((UTextButton_t*)obj);
 		break;
 	case EGameState_FreeGame: 
@@ -541,6 +579,7 @@ void SDL_HandleLeftClick(bool bUp, int x, int y)
 
 void SDL_HandleRightClick(bool bUp, int x, int y)
 {
+	UBase_t * obj = findOverlayObj(x, y);
 	switch (gState)
 	{
 	case EGameState_Unknown: break;
@@ -548,18 +587,21 @@ void SDL_HandleRightClick(bool bUp, int x, int y)
 	case EGameState_ScoreMenu: break;
 	case EGameState_FreeGame:
 		if (bUp)
-		{
-			UBase_t * c = findOverlayObj(x, y);
-			if (c)
+		{	
+			if (obj == NULL)
 			{
-				EObjectType e = c ? ((UBase_t*)c)->s : EObjectType_Unknown;
-				if (e >= EObjectType_ppp && e <= EObjectType_mmm)
+				uge_create(pxtod(x, true), pxtod(y, false), EObjectType_begin);
+			}
+			else
+			{
+				EObjectType e = obj ? ((UBase_t*)obj)->s : EObjectType_Unknown;
+				if (e >= EObjectType_ppp && e <= EObjectType_begin)
 				{
-					void * res = da_removeat(&da_obj, c);
-					if (res == c) free(c);
+					void * res = da_removeat(&da_obj, obj);
+					if (res == obj) free(obj);
 					else fprintf(stderr, "Error removing charge\n");
 				}
-			}
+			}		
 		}
 		break;
 	case EGameState_LevelGame: break;
@@ -595,6 +637,23 @@ void SDL_HandleMiddleClick(bool bUp, int x, int y)
 				else
 					c->s++;
 			}
+		}
+		if (c && e >= EObjectType_flag && e <= EObjectType_begin)
+		{
+			if(objTExist((e == EObjectType_flag) ? EObjectType_begin : EObjectType_flag))
+			{
+				da_elm_t * it = da_obj.first;
+				while(it)
+				{
+					if(it->elt && (((UBase_t *)it->elt)->s == ((e == EObjectType_flag) ? EObjectType_begin : EObjectType_flag)))
+					{
+						((UBase_t *)it->elt)->s = e;
+						break;
+					}					
+					it = it->next;
+				}			
+			}
+			((UBase_t*)c)->s = (e == EObjectType_flag) ? EObjectType_begin : EObjectType_flag;
 		}
 		break;
 	case EGameState_LevelGame: break;
@@ -731,6 +790,7 @@ void freemode_destroy()
 	UObject_t * obj = NULL;
 	while ((obj = (UObject_t *)da_remove(&da_obj)))
 		free(obj);
+	gMp = NULL;
 	gState = EGameState_Unknown;
 }
 
@@ -745,7 +805,7 @@ void m_init()
 		SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	if (!gSdlWindow) fprintf(stderr, "Can't create gSdlWindow\n");
 
-	gSdlRenderer = SDL_CreateRenderer(gSdlWindow, -1, SDL_RENDERER_ACCELERATED);
+	gSdlRenderer = SDL_CreateRenderer(gSdlWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	if (!gSdlRenderer) fprintf(stderr, "Can't create gSdlRenderer\n");
 
 	if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG))
@@ -781,6 +841,7 @@ void m_init()
 	gtDRAGCHARGE = ntt(N_TEXTURE_DRAGCHARGE);
 	gtOVERLAYCHARGE = ntt(N_TEXTURE_SELCHARGE);
 	gtFLAG = ntt(N_TEXTURE_FLAG);
+	gtBEGIN = ntt(N_TEXTURE_BEGIN);
 
 	da_init(&da_obj); //init array of obj
 	br_init(); //init background
@@ -794,7 +855,7 @@ void clearHighlightf()
 	while(it)
 	{
 		if (it->elt)
-			((UBase_t *)it->elt)->o = false;
+			((UBase_t *)it->elt)->bO = false;
 		it = it->next;
 	}
 }
@@ -859,7 +920,7 @@ void m_poll()
 				UBase_t * b = findOverlayObj(x, y);
 				if(b)
 				{
-					b->o = true;
+					b->bO = true;
 				}
 			}
 		}
@@ -1032,7 +1093,7 @@ void ut_render(UText_t* this)
 	if (this == NULL) return;
 	TTF_Font * f = NULL;
 	if(this->t.bTextButton)
-		f = this->tb.txt.b.o ? gMainFontBold : gMainFont;
+		f = this->tb.txt.b.bO ? gMainFontBold : gMainFont;
 	else
 		f = gSecondaryFont;
 	if (f)
@@ -1054,7 +1115,7 @@ void ut_render(UText_t* this)
 			SDL_RenderCopy(gSdlRenderer, t, NULL, &dest);
 			SDL_DestroyTexture(t);
 		}
-		if (this->t.bTextButton && this->tb.txt.b.o)
+		if (this->t.bTextButton && this->tb.txt.b.bO)
 		{
 			SDL_Rect dest;
 			dest.w = 32;
@@ -1085,6 +1146,7 @@ void da_obj_render(da_t* da)
 			case EObjectType_mm: 
 			case EObjectType_mmm:
 			case EObjectType_flag:
+			case EObjectType_begin:
 				ub_render((UBase_t*)it->elt);
 				break;
 			case EObjectType_Text:
@@ -1092,6 +1154,7 @@ void da_obj_render(da_t* da)
 				break;
 			case EObjectType_size:
 			default: ;
+				printf("error don't know how to render this object\n");
 			}		
 		}
 		else
