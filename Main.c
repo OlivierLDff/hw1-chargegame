@@ -17,6 +17,7 @@ int gCurrentHeight = SCREEN_HEIGHT;
 #define MAX_FILE_NAME 512
 
 const char N_TEXTURE_BACKGROUND[] = "./images/background.png";
+const char N_TEXTURE_BACKGROUNDW[] = "./images/backgroundw.png";
 const char N_TEXTURE_PARTICLE[] = "./images/particle.png";
 const char N_TEXTURE_CHARGE[] = "./images/charge.png";
 const char N_TEXTURE_CHARGE2[] = "./images/charge2.png";
@@ -44,6 +45,9 @@ const char F_MAP_NAME[] = "./mainmap.dat";
 const char F_MENUMAP_NAME[] = "./menumap.dat";
 const char F_SCORE_NAME[] = "./scores.dat";
 
+#define MAX_SCORES 3
+uint32_t gScores[MAX_SCORES];
+
 const double MAX_ACCELERATION = 0.00005f;
 const double MAX_SPEED = 0.1f;
 const double PARTICLE_WEIGHT_CONST = 0.005f;
@@ -53,8 +57,12 @@ const char M_GAMETITLE[] = "Charge Game";
 const char M_FREEMODE[] = "FreeMode";
 const char M_LEVEL[] = "Level";
 const char M_HIGHSCORE[] = "Highscore";
+const char M_TRY[] = "Try : %d";
+const char M_WIN[] = "You win !";
+const char M_PRESSESCAPE[] = "Press escape to come back !";
+const char M_SUCEED[] = "You suceed in %d try";
+const char M_PLACEINSCORE[] = "You are %d in highscore";
 const char M_QUIT[] = "Quit";
-const char M_BACK[] = "Back";
 
 const double P_GAMETILE_X = 50;
 const double P_GAMETILE_Y = 30;
@@ -75,45 +83,79 @@ const double P_BACK_X = 5;
 const double P_BACK_Y = 8;
 
 const double P_PAUSEPLAY_X = 95;
-const double P_PAUSEPLAY_Y = 95;
+const double P_PAUSEPLAY_Y = 93;
 
 const double P_CLEAR_X = 95;
-const double P_CLEAR_Y = 5;
+const double P_CLEAR_Y = 8;
 
+/** \brief is the application running, set to false to stop the main loop */
 bool gbRun = true;
+/** \brief function pointer to destroy current game state when the state is changed */
 void (*gDeleteCurrentState)() = NULL;
 
-SDL_Renderer* gSdlRenderer = NULL;
+/** \brief the main window, init in m_init() */
 SDL_Window* gSdlWindow = NULL;
+/** \brief the sdl renderer that render every texture, init in m_init( */
+SDL_Renderer* gSdlRenderer = NULL;
 
+/** \brief pointer onto the main font */
 TTF_Font* gMainFont = NULL;
+/** \brief pointer onto the main font bold */
 TTF_Font* gMainFontBold = NULL;
+/** \brief pointer onto the secondary font */
 TTF_Font* gSecondaryFont = NULL;
+/** \brief pointer onto the main font bold */
 TTF_Font* gSecondaryFontBold = NULL;
+/** \brief pointer onto the title font */
 TTF_Font* gTitleFont = NULL;
 
+/** \brief Background SDL texture pointer */
 SDL_Texture* gtBACKGROUND = NULL;
+/** \brief Background win SDL texture pointer */
+SDL_Texture* gtBACKGROUNDW = NULL;
+/** \brief Particle image SDL texture pointer */
 SDL_Texture* gtPARTICLE = NULL;
+/** \brief charge + image SDL texture pointer */
 SDL_Texture* gtCHARGE1 = NULL;
+/** \brief charge ++ image SDL texture pointer */
 SDL_Texture* gtCHARGE2 = NULL;
+/** \brief charge +++ image SDL texture pointer */
 SDL_Texture* gtCHARGE3 = NULL;
+/** \brief charge - image SDL texture pointer */
 SDL_Texture* gtNEGCHARGE1 = NULL;
+/** \brief charge -- image SDL texture pointer */
 SDL_Texture* gtNEGCHARGE2 = NULL;
+/** \brief charge --- image SDL texture pointer */
 SDL_Texture* gtNEGCHARGE3 = NULL;
+/** \brief image draw to overlay a particle/charge/flag when mouse is on it image SDL texture pointer */
 SDL_Texture* gtOVERLAYCHARGE = NULL;
+/** \brief image draw to overlay a particle/charge/flag when drag and drap image SDL texture pointer */
 SDL_Texture* gtDRAGCHARGE = NULL;
+/** \brief flag image SDL texture pointer */
 SDL_Texture* gtFLAG = NULL;
-SDL_Texture* gtBEGIN = NULL; 
+/** \brief not used in this version, may be used to draw wall begin */
+SDL_Texture* gtBEGIN = NULL;
+/** \brief not used in this version, may be used to draw wall end */
 SDL_Texture* gtEND = NULL;
+/** \brief pause button texture */
 SDL_Texture* gtPAUSE = NULL;
+/** \brief pause button bold texture */
 SDL_Texture* gtPAUSEB = NULL;
+/** \brief back texture */
 SDL_Texture* gtBACK = NULL;
+/** \brief back bold texture */
 SDL_Texture* gtBACKB = NULL;
+/** \brief play texture */
 SDL_Texture* gtPLAY = NULL;
+/** \brief play bold texture */
 SDL_Texture* gtPLAYB = NULL;
+/** \brief refresh texture */
 SDL_Texture* gtREFRESH = NULL;
-SDL_Texture* gtREFRESHB = NULL; 
+/** \brief refresh bold texture */
+SDL_Texture* gtREFRESHB = NULL;
+/** \brief clear texture */
 SDL_Texture* gtCLEAR = NULL;
+/** \brief clear bold texture */
 SDL_Texture* gtCLEARB = NULL;
 
 typedef struct da_elm_t
@@ -144,7 +186,8 @@ typedef enum EGameState
 	EGameState_ScoreMenu,
 	EGameState_FreeGame,
 	EGameState_LevelGame,
-	EGameState_size
+	EGameState_Win,
+	EGameState_size,
 } EGameState;
 
 /** \brief current state of the game */
@@ -158,7 +201,6 @@ typedef enum ETextButtonFunction
 	ETextButtonFunction_score,
 	ETextButtonFunction_level,
 	ETextButtonFunction_quit,
-	ETextButtonFunction_back,
 	ETextButtonFunction_size
 } ETextButtonFunction;
 
@@ -243,7 +285,7 @@ typedef struct UCharge
 typedef struct UGE
 {
 	UBase_t b;
-} UGE_t;
+} UFlag_t;
 
 typedef struct UParticle
 {
@@ -265,7 +307,7 @@ typedef union UObject
 {
 	UBase_t b;
 	UCharge_t c;
-	UGE_t ge;
+	UFlag_t ge;
 	UParticle_t p;
 	UText_t t;
 	UButton_t bt;
@@ -278,6 +320,9 @@ da_t da_obj;
 /** \brief return the main particle inside the da_obj array */
 UParticle_t* getMainParticle();
 bool bGameFreeze = false;
+double gMPPosx = 50.f;
+double gMPPosy = 50.f;
+uint32_t gTrynb = 0;
 
 //________________DISPLAY FUNCTION______________________
 
@@ -300,6 +345,7 @@ void freemode_init(bool bLoadMap);
 
 void saveMap(const char * filename);
 void loadMap(const char * filename);
+void score_init();
 
 UParticle_t* getMainParticle()
 {
@@ -370,6 +416,13 @@ int dtopx(const double p, const bool xAxis)
 	return (int)(p * (xAxis ? (double)gCurrentWidth : (double)gCurrentHeight) / 100.f);
 }
 
+void obj_destroy()
+{
+	UObject_t* obj = NULL;
+	while ((obj = (UObject_t *)da_remove(&da_obj)))
+		free(obj);
+}
+
 void ub_init(UBase_t* this, const double x, const double y, const double h, const double w, const EObjectType e)
 {
 	if (this)
@@ -381,6 +434,41 @@ void ub_init(UBase_t* this, const double x, const double y, const double h, cons
 		this->h = h;
 		this->eot = e;
 	}
+}
+
+void loadScores()
+{
+	FILE* fp = NULL;
+	memset(gScores, 0, sizeof(uint32_t)*MAX_SCORES);
+	fp = fopen(F_SCORE_NAME, "rb");
+	if (!fp)
+	{
+		fprintf(stderr, "fail to open %s file in rb mode\n", F_SCORE_NAME);
+		return;
+	}
+	fread(gScores, sizeof(uint32_t), MAX_SCORES, fp);
+	fclose(fp);
+}
+
+void saveScores(uint32_t value)
+{
+	size_t i = 0;
+	size_t j = 0;
+	FILE* fp = NULL;
+	loadScores();
+	for (i; i < MAX_SCORES; ++i) if (value < gScores[i] || gScores[i] == 0) break;
+	for (j = MAX_SCORES - 1; j> i; --j)
+		gScores[j] = gScores[j - 1];
+	gScores[i] = value;
+
+	fp = fopen(F_SCORE_NAME, "wb");
+	if (!fp)
+	{
+		fprintf(stderr, "fail to open %s file in wb mode\n", F_SCORE_NAME);
+		return;
+	}
+	fwrite(gScores, sizeof(uint32_t), MAX_SCORES, fp);
+	fclose(fp);
 }
 
 void ch_init(UCharge_t* this, const double x, const double y, EChargeStrength cs)
@@ -417,12 +505,12 @@ bool objTExist(const EObjectType type)
 
 void uge_create(const double x, const double y, EObjectType type)
 {
-	if (type != EObjectType_begin && type != EObjectType_flag) return;
+	//if (type != EObjectType_begin && type != EObjectType_flag) return;
 
-	if (objTExist(type)) type = type == EObjectType_begin ? EObjectType_flag : EObjectType_begin;
+	//if (objTExist(type)) type = type == EObjectType_begin ? EObjectType_flag : EObjectType_begin;
 	if (objTExist(type)) return;
 
-	UGE_t* e = malloc(sizeof(UGE_t));
+	UFlag_t* e = malloc(sizeof(UFlag_t));
 	ub_init((UBase_t *)e, x, y, pxtod(32, false), pxtod(32, true), type);
 	da_push(&da_obj, e);
 	printf("create uge\n");
@@ -445,7 +533,7 @@ void ub_render(UBase_t* this)
 		{
 			if (gDragObj == this)
 				SDL_RenderCopy(gSdlRenderer, gtDRAGCHARGE, NULL, &dest);
-			else if (this->bO)
+			else if (this->bO && ((gState != EGameState_LevelGame) || this->bMoD) && gState != EGameState_Win)
 				SDL_RenderCopy(gSdlRenderer, gtOVERLAYCHARGE, NULL, &dest);
 		}	
 		SDL_RenderCopy(gSdlRenderer, eotot(this), NULL, &dest);
@@ -619,17 +707,26 @@ void m_clamp60fps(const uint32_t LastUpdateTick)
 {
 	uint32_t ticks = SDL_GetTicks();
 
-	if (LastUpdateTick < ticks)
+	//printf("LastUpdateTick = %d, ticks = %d\n", LastUpdateTick, ticks);
+
+	if (LastUpdateTick > ticks)
 		return;
 
-	if (ticks - LastUpdateTick <= 20)
-		SDL_Delay(20 - (ticks - LastUpdateTick));
+	if (ticks - LastUpdateTick <= 16)
+		SDL_Delay(16 - (ticks - LastUpdateTick));
+
+	//printf("inter : %d\n", SDL_GetTicks() - LastUpdateTick);
 }
 
 bool ub_over(UBase_t* elt, const double x, const double y)
 {
-	double dx = elt->w * 0.5f;
-	double dy = elt->h * 0.5f;
+	double dx = pxtod(16, true);
+	double dy = pxtod(16, false);
+	if(elt->eot == EObjectType_Text)
+	{
+		dx = elt->w * 0.5f;
+		dy = elt->h * 0.5f;
+	}
 	if (elt)
 	{
 		if (fabs(elt->x - x) <= dx && fabs(elt->y - y) <= dy)
@@ -658,21 +755,71 @@ void ch_create(const double x, const double y, const enum EChargeStrength cs)
 	ch_init(c, x, y, cs);
 }
 
+void saveScoresx()
+{
+	FILE* fp = NULL;
+	memset(gScores, 0, sizeof(uint32_t)* MAX_SCORES);
+	fp = fopen(F_SCORE_NAME, "wb");
+	if (!fp)
+	{
+		fprintf(stderr, "fail to open %s file in wb mode\n", F_SCORE_NAME);
+		return;
+	}
+	fwrite(gScores, sizeof(uint32_t), MAX_SCORES, fp);
+	fclose(fp);
+}
+
 void ubt_click(UButton_t* this)
 {
 	if (!this) return;
 	printf("click\n");
 	switch (this->f)
 	{
-	case EButtonFunction_Pause: bGameFreeze = true; this->f = EButtonFunction_Play; break;
-	case EButtonFunction_Play: bGameFreeze = false; this->f = EButtonFunction_Pause; break;
-	case EButtonFunction_Back: menu_init(); break;
-	case EButtonFunction_Clear: freemode_init(false);
+	case EButtonFunction_Pause: 
+		if(gState == EGameState_FreeGame)
+		{
+			bGameFreeze = true; 
+			this->f = EButtonFunction_Play;
+		}
 		break;
-	case EButtonFunction_Retry: break;
+	case EButtonFunction_Play:
+		if (gState == EGameState_FreeGame)
+		{
+			bGameFreeze = false; 
+			this->f = EButtonFunction_Pause;
+		}
+		else if (gState == EGameState_LevelGame)
+		{
+			bGameFreeze = false; 
+			this->f = EButtonFunction_Retry;
+		}
+		break;
+	case EButtonFunction_Back: menu_init(); break;
+	case EButtonFunction_Clear:
+		if (gState == EGameState_FreeGame)
+			freemode_init(false);
+		else if (gState == EGameState_ScoreMenu)
+		{
+			saveScoresx();
+			score_init();
+		}
+		break;
+	case EButtonFunction_Retry: 
+		if (gState == EGameState_LevelGame) 
+		{
+			++gTrynb;
+			bGameFreeze = true; 
+			this->f = EButtonFunction_Play;
+			p_init(gMPPosx, gMPPosy, 0, 0);
+		}
 	case EButtonFunction_Size: break;
 	default: ;
 	}
+}
+
+inline bool bCanCreateOrDelete()
+{
+	return !(gState == EGameState_LevelGame && !bGameFreeze);
 }
 
 void SDL_HandleLeftClick(const bool bUp, const int x, const int y)
@@ -682,34 +829,30 @@ void SDL_HandleLeftClick(const bool bUp, const int x, const int y)
 	switch (gState)
 	{
 	case EGameState_ScoreMenu:
+		if (bUp && obj && obj->eot == EObjectType_Button)
+			ubt_click((UButton_t *)obj);
+		break;
 	case EGameState_MainMenu:
 		if (bUp && obj && obj->eot == EObjectType_Text && ((UTextBase_t *)obj)->bTextButton)
 			utb_click((UTextButton_t*)obj);
 		break;
+	case EGameState_LevelGame:
 	case EGameState_FreeGame:
 		if (bUp)
 		{
 			if (gDragObj)
-			{
 				gDragObj = NULL;
-			}
 			else
-			{
-				if (obj && obj->eot == EObjectType_Button)
+			{		
+				if ( obj && obj->eot == EObjectType_Button)
 					ubt_click((UButton_t *)obj);
-				else
+				else if(bCanCreateOrDelete())
 					ch_create(pxtod(x, true), pxtod(y, false), EChargeStrength_m);
 			}
 		}
-		else
-		{
-			if (obj && obj->bMoD)
-			{
+		else if (obj && obj->bMoD)
 				gDragObj = obj;
-			}
-		}
 		break;
-	case EGameState_LevelGame: break;
 	default: ;
 	}
 }
@@ -723,11 +866,12 @@ void SDL_HandleRightClick(const bool bUp, const int x, const int y)
 	case EGameState_MainMenu: break;
 	case EGameState_ScoreMenu: break;
 	case EGameState_FreeGame:
-		if (bUp)
+	case EGameState_LevelGame:
+		if (bUp &&  bCanCreateOrDelete())
 		{
 			if (obj == NULL)
 			{
-				uge_create(pxtod(x, true), pxtod(y, false), EObjectType_begin);
+				uge_create(pxtod(x, true), pxtod(y, false), EObjectType_flag);
 			}
 			else
 			{
@@ -741,7 +885,6 @@ void SDL_HandleRightClick(const bool bUp, const int x, const int y)
 			}
 		}
 		break;
-	case EGameState_LevelGame: break;
 	case EGameState_size: break;
 	default: ;
 	}
@@ -755,6 +898,7 @@ void SDL_HandleMiddleClick(const bool bUp, const int x, const int y)
 	case EGameState_Unknown: break;
 	case EGameState_MainMenu: break;
 	case EGameState_ScoreMenu: break;
+	case EGameState_LevelGame:
 	case EGameState_FreeGame:
 		b = findOverlayObj(x, y);
 		//EObjectType e = b ? ((UBase_t*)b)->s : EObjectType_Unknown;
@@ -776,7 +920,7 @@ void SDL_HandleMiddleClick(const bool bUp, const int x, const int y)
 					c->f++;
 			}
 		}
-		if (b && b->eot >= EObjectType_flag && b->eot <= EObjectType_begin)
+		/*if (b && b->eot >= EObjectType_flag && b->eot <= EObjectType_begin)
 		{
 			if (objTExist((b->eot == EObjectType_flag) ? EObjectType_begin : EObjectType_flag))
 			{
@@ -792,12 +936,27 @@ void SDL_HandleMiddleClick(const bool bUp, const int x, const int y)
 				}
 			}
 			((UBase_t*)b)->eot = (b->eot == EObjectType_flag) ? EObjectType_begin : EObjectType_flag;
-		}
+		}*/
 		break;
-	case EGameState_LevelGame: break;
 	case EGameState_size: break;
 	default: ;
 	}
+}
+
+UTextBase_t* ut_create(const double x, const double y, const char* t, bool bBig)
+{
+	UTextBase_t* res = malloc(sizeof(UTextButton_t));
+	if (!res) printf("Fail to allocate memory for utb\n");
+	else
+	{
+		ub_init((UBase_t*)res, x, y, 0, 0, EObjectType_Text);
+		res->bTextButton = false;
+		res->t = t;
+		res->bBig = bBig;
+
+		da_push(&da_obj, res);
+	}
+	return res;
 }
 
 SDL_Texture* loadFromRenderedText(char* textureText, SDL_Color textColor, TTF_Font* f, int* w, int* h)
@@ -855,8 +1014,6 @@ UTextButton_t* utb_create(const double x, const double y, EButtonFunction f)
 			break;
 		case ETextButtonFunction_quit: res->txt.t = M_QUIT;
 			break;
-		case ETextButtonFunction_back: res->txt.t = M_BACK;
-			break;
 		case ETextButtonFunction_Unknown:
 		case ETextButtonFunction_none:
 		case ETextButtonFunction_size:
@@ -867,45 +1024,113 @@ UTextButton_t* utb_create(const double x, const double y, EButtonFunction f)
 	return res;
 }
 
+char sc1[MAX_FILE_NAME];
+char sc2[MAX_FILE_NAME];
+char sc3[MAX_FILE_NAME];
+
+void score_init()
+{
+	if (gDeleteCurrentState) gDeleteCurrentState();	
+	gState = EGameState_ScoreMenu;
+	loadScores();
+	ut_create(P_GAMETILE_X, P_GAMETILE_Y - 15.f, M_HIGHSCORE, true);
+	ubt_create(P_BACK_X, P_BACK_Y, EButtonFunction_Back);
+	ubt_create(P_CLEAR_X, P_CLEAR_Y, EButtonFunction_Clear);
+
+	snprintf(sc1, MAX_FILE_NAME, "1. Score is : %d", gScores[0]);
+	snprintf(sc2, MAX_FILE_NAME, "2. Score is : %d", gScores[1]);
+	snprintf(sc3, MAX_FILE_NAME, "3. Score is : %d", gScores[2]);
+
+	if (gScores[0]) ut_create(50.f, 50.f, sc1, false);
+	if (gScores[1]) ut_create(50.f, 60.f, sc2, false);
+	if (gScores[2]) ut_create(50.f, 70.f, sc3, false);
+
+	gDeleteCurrentState = &obj_destroy;
+}
+
+void level_init(bool bLoadMap)
+{
+	da_elm_t * it = NULL;
+	UFlag_t * flg = NULL;
+	UParticle_t * p = NULL;
+	da_t userobj;
+	da_init(&userobj);
+	if(gState == EGameState_LevelGame) //Save object placed by the user
+	{
+		it = da_obj.first;
+		while (it)
+		{
+			if (it->elt && ((UBase_t *)it->elt)->bMoD) //this is an object placed by the user
+			{
+				da_push(&userobj, it->elt);
+			}		
+			it = it->next;
+		}
+		it = userobj.first;
+		while (it)
+		{
+			da_removeat(&da_obj, it->elt);
+			it = it->next;
+		}
+	}
+
+	if (gDeleteCurrentState) gDeleteCurrentState();
+	gState = EGameState_LevelGame;
+	if(bLoadMap) loadMap(F_MAP_NAME);
+	it = da_obj.first;
+
+	while(it)
+	{
+		if(it->elt)
+		{
+			UBase_t * b = (UBase_t *)it->elt;
+			b->bMoD = false;
+			if (b->eot == EObjectType_flag)
+				flg = (UFlag_t *)b;
+		}
+		it = it->next;
+	}
+	if (!flg) //create a flag
+		uge_create(50.f,50.f, EObjectType_flag);
+
+	it = userobj.first;
+	while (it)
+	{
+		da_push(&da_obj, it->elt);		
+		it = it->next;
+	}
+
+	p = getMainParticle();
+
+	if(p && bLoadMap)
+	{
+		gMPPosx = p->b.x;
+		gMPPosy = p->b.y;
+		gTrynb = 0;
+	}
+
+	p_init(gMPPosx, gMPPosy, 0, 0);	
+
+	ubt_create(P_BACK_X, P_BACK_Y, EButtonFunction_Back);
+	ubt_create(P_PAUSEPLAY_X, P_PAUSEPLAY_Y, EButtonFunction_Play);
+	ut_create(P_BACK_X+5.f, P_PAUSEPLAY_Y, M_TRY, false);
+
+	bGameFreeze = true;
+
+	gDeleteCurrentState = &obj_destroy;
+}
+
 void utb_click(UTextButton_t* this)
 {
 	switch (this->f)
 	{
-	case ETextButtonFunction_Unknown: break;
-	case ETextButtonFunction_none: break;
-	case ETextButtonFunction_free: freemode_init(true);
-		break;
-	case ETextButtonFunction_score: break;
-	case ETextButtonFunction_level: break;
+	case ETextButtonFunction_free: freemode_init(true); break;
+	case ETextButtonFunction_score: score_init(); break;
+	case ETextButtonFunction_level: level_init(true); break;
 	case ETextButtonFunction_quit: gbRun = false;
 		break;
-	case ETextButtonFunction_back: break;
-	case ETextButtonFunction_size: break;
 	default: ;
 	}
-}
-
-UTextBase_t* ut_create(const double x, const double y, const char* t, bool bBig)
-{
-	UTextBase_t* res = malloc(sizeof(UTextButton_t));
-	if (!res) printf("Fail to allocate memory for utb\n");
-	else
-	{
-		ub_init((UBase_t*)res, x, y, 0, 0, EObjectType_Text);
-		res->bTextButton = false;
-		res->t = t;
-		res->bBig = bBig;
-
-		da_push(&da_obj, res);
-	}
-	return res;
-}
-
-void obj_destroy()
-{
-	UObject_t* obj = NULL;
-	while ((obj = (UObject_t *)da_remove(&da_obj)))
-		free(obj);
 }
 
 /** \brief create all the object for the menu */
@@ -913,6 +1138,7 @@ void menu_init()
 {
 	if (gDeleteCurrentState) gDeleteCurrentState();
 	printf("create menu \n");
+	bGameFreeze = false;
 	loadMap(F_MENUMAP_NAME);
 	gState = EGameState_MainMenu;
 	ut_create(P_GAMETILE_X, P_GAMETILE_Y, M_GAMETITLE, true);
@@ -929,7 +1155,7 @@ void freemode_init(bool bLoadMap)
 	if (gDeleteCurrentState) gDeleteCurrentState();
 	if(bLoadMap) loadMap(F_MAP_NAME);
 	gState = EGameState_FreeGame;
-	p_init(50, 50, 0, 0); //Ensure the main particle always exist
+	p_init(gMPPosx, gMPPosy, 0, 0); //Ensure the main particle always exist
 	ubt_create(P_BACK_X, P_BACK_Y, EButtonFunction_Back);
 	ubt_create(P_PAUSEPLAY_X, P_PAUSEPLAY_Y, EButtonFunction_Pause);
 	ubt_create(P_CLEAR_X, P_CLEAR_Y, EButtonFunction_Clear);
@@ -974,7 +1200,8 @@ void m_init()
 		printf("Failed to load Roboto font! SDL_ttf Error: %s\n", TTF_GetError());
 
 	//__________________OPEN IMAGES__________________
-	gtPARTICLE = ntt(N_TEXTURE_PARTICLE);
+	gtPARTICLE = ntt(N_TEXTURE_PARTICLE); 
+	gtBACKGROUNDW = ntt(N_TEXTURE_BACKGROUNDW);
 	gtCHARGE1 = ntt(N_TEXTURE_CHARGE);
 	gtCHARGE2 = ntt(N_TEXTURE_CHARGE2);
 	gtCHARGE3 = ntt(N_TEXTURE_CHARGE3);
@@ -1038,7 +1265,7 @@ void saveMap(const char * filename)
 				fwrite(b, sizeof(UCharge_t), 1, fp); break;
 			case EObjectType_flag:
 			case EObjectType_begin:
-				fwrite(b, sizeof(UGE_t), 1, fp); break;
+				fwrite(b, sizeof(UFlag_t), 1, fp); break;
 			case EObjectType_Text: break;
 			case EObjectType_size: break;
 			default: ;
@@ -1094,18 +1321,17 @@ void loadMap(const char * filename)
 			}
 			break;
 		case EObjectType_flag:
-		case EObjectType_begin:
-			{
-				UGE_t ge;
-				fread(&ge, sizeof(UGE_t), 1, fp);
-				uge_create(ge.b.x, ge.b.y, ge.b.eot);
-			}
-			
-
+		{
+			UFlag_t ge;
+			fread(&ge, sizeof(UFlag_t), 1, fp);
+			uge_create(ge.b.x, ge.b.y, ge.b.eot);
+		}
 			break;
-		default: ;
+		default: printf("failed to load map\n");
+			fclose(fp); break;
 		}
 	}
+	fclose(fp);
 
 	/*fseek(fp, 0, SEEK_END);
 	long int size = ftell(fp); // now you got size of file in bytes
@@ -1132,12 +1358,12 @@ void m_poll()
 			case EGameState_Unknown: break;
 			case EGameState_MainMenu: gbRun = false;
 				break;
-			case EGameState_ScoreMenu: break;
+			case EGameState_ScoreMenu:
 			case EGameState_FreeGame:
+			case EGameState_LevelGame:
+			case EGameState_Win:
 				menu_init();
 				break;
-			case EGameState_LevelGame: break;
-			case EGameState_size: break;
 			default: ;
 			}
 		}
@@ -1231,11 +1457,11 @@ double getffeo(enum EChargeStrength object)
 	double f = 0;
 	switch (object)
 	{
-	case EChargeStrength_ppp: f = 3.f;
+	case EChargeStrength_ppp: f = 0.6f;
 		break;
-	case EChargeStrength_pp: f = 2.f;
+	case EChargeStrength_pp: f = 0.4f;
 		break;
-	case EChargeStrength_p: f = 1.f;
+	case EChargeStrength_p: f = 0.2f;
 		break;
 	case EChargeStrength_m: f = -1.f;
 		break;
@@ -1271,7 +1497,7 @@ bool ftoa(UCharge_t* c, double* fx, double* fy, double x, double y)
 	double xd = x - c->b.x;
 	double yd = y - c->b.y;
 	double d = sqrt(xd * xd + yd * yd);
-	if (d > 5.f) d = 5.f;
+	if (d < 5.f) d = 5.f;
 	f = f / d;
 	*fx += f * (d ? xd / d : 0);
 	*fy += f * (d ? yd / d : 0);
@@ -1296,43 +1522,75 @@ void m_update(uint32_t delta)
 			lasty = p->b.y;
 			return;
 		}
-		if (bGameFreeze) return;
 		da_elm_t* it = da_obj.first;
-		while (it)
+		if (!bGameFreeze)
 		{
-			double fx = 0;
-			double fy = 0;
-			double lastx = p->b.x;
-			double lasty = p->b.y;
+			while (it)
+			{
+				double fx = 0;
+				double fy = 0;
+				double lastx = p->b.x;
+				double lasty = p->b.y;
 
-			EObjectType e = it->elt ? ((UBase_t*)it->elt)->eot : EObjectType_Unknown;
-			if (e == EObjectType_Charge)
-				ftoa((UCharge_t*)it->elt, &fx, &fy, p->b.x, p->b.y);
+				EObjectType e = it->elt ? ((UBase_t*)it->elt)->eot : EObjectType_Unknown;
+				if (e == EObjectType_Charge)
+					ftoa((UCharge_t*)it->elt, &fx, &fy, p->b.x, p->b.y);
 
-			fx -= p->dx * AIR_FRICTION;
-			fy -= p->dy * AIR_FRICTION;
+				fx -= p->dx * AIR_FRICTION;
+				fy -= p->dy * AIR_FRICTION;
 
-			fx *= PARTICLE_WEIGHT_CONST;
-			fy *= PARTICLE_WEIGHT_CONST;
+				fx *= PARTICLE_WEIGHT_CONST;
+				fy *= PARTICLE_WEIGHT_CONST;
 
-			clamp(&fx, -MAX_ACCELERATION, MAX_ACCELERATION);
-			clamp(&fy, -MAX_ACCELERATION, MAX_ACCELERATION);
+				clamp(&fx, -MAX_ACCELERATION, MAX_ACCELERATION);
+				clamp(&fy, -MAX_ACCELERATION, MAX_ACCELERATION);
 
-			p->b.x += p->dx * delta + fx * delta * delta;
-			p->b.y += p->dy * delta + fy * delta * delta;
+				p->b.x += p->dx * delta + fx * delta * delta;
+				p->b.y += p->dy * delta + fy * delta * delta;
 
-			clamp(&p->b.x, 0.f, 100.f);
-			clamp(&p->b.y, 0.f, 100.f);
+				clamp(&p->b.x, 0.f, 100.f);
+				clamp(&p->b.y, 0.f, 100.f);
 
 
-			p->dx = (p->b.x - lastx) / delta;
-			p->dy = (p->b.y - lasty) / delta;
+				p->dx = (p->b.x - lastx) / delta;
+				p->dy = (p->b.y - lasty) / delta;
 
-			clamp(&p->dx, -MAX_SPEED, MAX_SPEED);
-			clamp(&p->dy, -MAX_SPEED, MAX_SPEED);
+				clamp(&p->dx, -MAX_SPEED, MAX_SPEED);
+				clamp(&p->dy, -MAX_SPEED, MAX_SPEED);
 
-			it = it->next;
+				it = it->next;
+			}
 		}
+		if(gState == EGameState_LevelGame)
+		{
+			UFlag_t * flag = NULL;
+			it = da_obj.first;
+			while (it)
+			{
+				if (it->elt)
+				{
+					UBase_t * b = (UBase_t *)it->elt;
+					if (b->eot == EObjectType_flag)
+						flag = (UFlag_t *)b;
+				}
+				it = it->next;
+			}
+			if (!flag)
+			{
+				fprintf(stderr, "Error : no flag to compare to\n");
+				return;
+			}
+		
+			if (fabs(p->b.x - flag->b.x) <= pxtod(16, true) && fabs(p->b.y - flag->b.y) <= pxtod(16, false))
+			{
+				printf("win\n");
+				bGameFreeze = true;
+				gState = EGameState_Win;
+				//ut_create(P_GAMETILE_X, P_GAMETILE_Y, M_WIN, true);
+				++gTrynb;
+				saveScores(gTrynb);
+			}		
+		}	
 	}
 }
 
@@ -1387,7 +1645,11 @@ void ut_render(UText_t* this)
 		int w, h;
 		SDL_Color textColor = {200, 200, 200};
 		SDL_Texture* t;
-		if ((t = loadFromRenderedText((char *)this->t.t, textColor, f, &w, &h)))
+		char c[MAX_FILE_NAME];// = (char *)this->t.t;
+
+		snprintf(c, MAX_FILE_NAME, this->t.t, gTrynb);
+
+		if ((t = loadFromRenderedText(c, textColor, f, &w, &h)))
 		{
 			SDL_Rect dest;
 
@@ -1446,12 +1708,83 @@ void da_obj_render(da_t* da)
 	}
 }
 
+uint32_t getPlaceFromScore()
+{
+	size_t i = 0;
+	for(i; i < MAX_SCORES; ++i) if (gScores[i] == gTrynb) return i + 1;
+	return 0;
+}
+
 void m_render()
 {
 	SDL_RenderClear(gSdlRenderer);
 
 	br_render();
 	da_obj_render(&da_obj);
+
+	if(gState == EGameState_Win)
+	{
+		SDL_Rect dest;
+
+		dest.w = gCurrentWidth;
+		dest.h = gCurrentHeight;
+		dest.x = 0;
+		dest.y = 0;
+
+		SDL_RenderCopy(gSdlRenderer, gtBACKGROUNDW, NULL, &dest);
+
+		UTextBase_t youwint;
+		youwint.b.x = P_GAMETILE_X;
+		youwint.b.y = P_GAMETILE_Y;
+		youwint.b.eot = EObjectType_Text;
+		youwint.t = M_WIN;
+		youwint.bBig = true;
+		youwint.bTextButton = false;
+		ut_render((UText_t *)&youwint);
+
+		UTextBase_t pressEscpae;
+		pressEscpae.b.x = P_GAMETILE_X;
+		pressEscpae.b.y = P_GAMETILE_Y + 40.f;
+		pressEscpae.b.eot = EObjectType_Text;
+		pressEscpae.t = M_PRESSESCAPE;
+		pressEscpae.bBig = false;
+		pressEscpae.bTextButton = false;
+		ut_render((UText_t *)&pressEscpae);
+
+		char c[MAX_FILE_NAME];
+		snprintf(c, MAX_FILE_NAME, M_SUCEED, gTrynb);
+
+		UTextBase_t intry;
+		intry.b.x = P_GAMETILE_X;
+		intry.b.y = P_GAMETILE_Y + 30.f;
+		intry.b.eot = EObjectType_Text;
+		intry.t = c;
+		intry.bBig = false;
+		intry.bTextButton = false;
+		ut_render((UText_t *)&intry);
+
+		uint32_t p = getPlaceFromScore();
+		switch (p)
+		{
+		case 1:
+			snprintf(c, MAX_FILE_NAME, "You are 1st in highscore"); break;
+		case 2:
+			snprintf(c, MAX_FILE_NAME, "You are 2nd in highscore"); break;
+		case 3:
+			snprintf(c, MAX_FILE_NAME, "You are 3rd in highscore"); break;
+		default:
+			snprintf(c, MAX_FILE_NAME, "You are not in highscore"); break;
+		}	
+
+		UTextBase_t placeis;
+		placeis.b.x = P_GAMETILE_X;
+		placeis.b.y = P_GAMETILE_Y + 20.f;
+		placeis.b.eot = EObjectType_Text;
+		placeis.t = c;
+		placeis.bBig = false;
+		placeis.bTextButton = false;
+		ut_render((UText_t *)&placeis);
+	}
 
 	SDL_RenderPresent(gSdlRenderer);
 }
