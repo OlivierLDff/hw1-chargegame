@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <math.h>
 
 #include <SDL.h>
 #include <SDL_ttf.h>
@@ -208,7 +209,7 @@ void da_init(da_t* this);
 /** \brief push a value into a dynamic array */
 void da_push(da_t* this, void* elt);
 /** \brief remove at element dynamic array \return pointer to the element removed */
-void* da_removeat(da_t* this, void* elt);
+void* da_removeat(da_t* this, const void* elt);
 /** \brief remove last element \return pointer to the element removed */
 void* da_remove(da_t* this);
 
@@ -952,7 +953,7 @@ void ubt_click(UButton_t* this)
 	}
 }
 
-inline bool bCanCreateOrDelete()
+bool bCanCreateOrDelete()
 {
 	return !(gState == EGameState_LevelGame && !gbGameFreeze);
 }
