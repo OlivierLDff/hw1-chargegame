@@ -8,13 +8,22 @@
 #include <SDL_ttf.h>
 #include <SDL_image.h>
 
-#define GAME_TITLE "ChargeGame"
-#define SCREEN_WIDTH 640
-int gCurrentWidth = SCREEN_WIDTH;
-#define SCREEN_HEIGHT 480
-int gCurrentHeight = SCREEN_HEIGHT;
+/**
+ * \brief Charge Game - Olivier Le Doeuff - CR0ZOQ
+ * Homework Basic Of Programming
+ * to compile you need SDL2 / image / ttf
+ * olivier.ldff@gmail.com
+ */
 
-#define MAX_FILE_NAME 64
+#define GAME_TITLE "ChargeGame"		//Window title
+#define SCREEN_WIDTH 640			
+int gCurrentWidth = SCREEN_WIDTH;	//Current width of screen can be resized
+#define SCREEN_HEIGHT 480
+int gCurrentHeight = SCREEN_HEIGHT; //Current height of screen can be resized
+
+#define STRING_BUFFER_SIZE 64
+
+//_________________PATH CONSTANT________________
 
 const char N_TEXTURE_BACKGROUND[] = "./images/background.png";
 const char N_TEXTURE_BACKGROUNDW[] = "./images/backgroundw.png";
@@ -48,10 +57,14 @@ const char F_SCORE_NAME[] = "./scores.dat";
 #define MAX_SCORES 3
 uint32_t gScores[MAX_SCORES];
 
+//_______________GAME PHYSICS CONSTANT________________
+
 const double MAX_ACCELERATION = 0.00005f;
 const double MAX_SPEED = 0.1f;
 const double PARTICLE_WEIGHT_CONST = 0.005f;
 const double AIR_FRICTION = 0.001f;
+
+//_________________STRING CONSTANT____________________
 
 const char M_GAMETITLE[] = "Charge Game";
 const char M_FREEMODE[] = "FreeMode";
@@ -64,9 +77,11 @@ const char M_SUCEED[] = "You suceed in %d try";
 const char M_PLACEINSCORE[] = "You are %d in highscore";
 const char M_QUIT[] = "Quit";
 
-char sc1[MAX_FILE_NAME];	//Score 1 string
-char sc2[MAX_FILE_NAME];	//Score 2 string
-char sc3[MAX_FILE_NAME];	//Score 3 string
+char sc1[STRING_BUFFER_SIZE];	//Score 1 string
+char sc2[STRING_BUFFER_SIZE];	//Score 2 string
+char sc3[STRING_BUFFER_SIZE];	//Score 3 string
+
+//_________________POSTION CONSTANT____________________
 
 const double P_GAMETILE_X = 50;
 const double P_GAMETILE_Y = 30;
@@ -92,6 +107,8 @@ const double P_PAUSEPLAY_Y = 93;
 const double P_CLEAR_X = 95;
 const double P_CLEAR_Y = 8;
 
+//________________GLOBAL VARIABLE___________________
+
 /** \brief is the application running, set to false to stop the main loop */
 bool gbRun = true;
 /** \brief function pointer to destroy current game state when the state is changed */
@@ -101,6 +118,8 @@ void (*gDeleteCurrentState)() = NULL;
 SDL_Window* gSdlWindow = NULL;
 /** \brief the sdl renderer that render every texture, init in m_init( */
 SDL_Renderer* gSdlRenderer = NULL;
+
+//________________FONTS___________________
 
 /** \brief pointer onto the main font */
 TTF_Font* gMainFont = NULL;
@@ -112,6 +131,8 @@ TTF_Font* gSecondaryFont = NULL;
 TTF_Font* gSecondaryFontBold = NULL;
 /** \brief pointer onto the title font */
 TTF_Font* gTitleFont = NULL;
+
+//________________TEXTURES___________________
 
 /** \brief Background SDL texture pointer */
 SDL_Texture * gtBACKGROUND = NULL;
@@ -162,6 +183,8 @@ SDL_Texture * gtCLEAR = NULL;
 /** \brief clear bold texture */
 SDL_Texture * gtCLEARB = NULL;
 
+//________________DYNAMIC ARRAY___________________
+
 /** \brief dynamic array element */
 typedef struct da_elm_t
 {
@@ -188,6 +211,8 @@ void da_push(da_t* this, void* elt);
 void* da_removeat(da_t* this, void* elt);
 /** \brief remove last element \return pointer to the element removed */
 void* da_remove(da_t* this);
+
+//_______________ENUMERATIONS___________________
 
 /** \brief game state */
 typedef enum EGameState
@@ -338,8 +363,6 @@ double gMPPosx = 50.f;
 double gMPPosy = 50.f;
 /** \brief number of try for the level, reset when level menu is init */
 uint32_t gNbTry = 0;
-
-//________________DISPLAY FUNCTION______________________
 
 /** \brief name to texture */
 SDL_Texture* ntt(const char* name);
@@ -1145,9 +1168,9 @@ void score_init()
 	ubt_create(P_BACK_X, P_BACK_Y, EButtonFunction_Back);
 	ubt_create(P_CLEAR_X, P_CLEAR_Y, EButtonFunction_Clear);
 
-	snprintf(sc1, MAX_FILE_NAME, "1. Score is : %d", gScores[0]);
-	snprintf(sc2, MAX_FILE_NAME, "2. Score is : %d", gScores[1]);
-	snprintf(sc3, MAX_FILE_NAME, "3. Score is : %d", gScores[2]);
+	snprintf(sc1, STRING_BUFFER_SIZE, "1. Score is : %d", gScores[0]);
+	snprintf(sc2, STRING_BUFFER_SIZE, "2. Score is : %d", gScores[1]);
+	snprintf(sc3, STRING_BUFFER_SIZE, "3. Score is : %d", gScores[2]);
 
 	if (gScores[0]) ut_create(50.f, 50.f, sc1, false);
 	if (gScores[1]) ut_create(50.f, 60.f, sc2, false);
@@ -1382,15 +1405,6 @@ void saveMap(const char * filename)
 
 		it = it->next;
 	}
-
-	/*fseek(fp, 0, SEEK_END);
-	long int size = ftell(fp); // now you got size of file in bytes
-	fseek(fp, 0, SEEK_SET);    // same as rewind(fp)
-	for (int i = 0; i<size; i++)
-	{
-		fread(&a, sizeof(int), 1, fp); // you read one int (sizeof(int)!=1 byte)
-		printf("%d\t", a);
-	}*/
 	fclose(fp);
 }
 
@@ -1440,15 +1454,6 @@ void loadMap(const char * filename)
 		}
 	}
 	fclose(fp);
-
-	/*fseek(fp, 0, SEEK_END);
-	long int size = ftell(fp); // now you got size of file in bytes
-	fseek(fp, 0, SEEK_SET);    // same as rewind(fp)
-	for (int i = 0; i<size; i++)
-	{
-		fread(&a, sizeof(int), 1, fp); // you read one int (sizeof(int)!=1 byte)
-		printf("%d\t", a);
-	}*/
 }
 
 void m_poll()
@@ -1458,7 +1463,6 @@ void m_poll()
 	while (SDL_PollEvent(&e)) //Poll every input
 	{
 		if (e.type == SDL_QUIT) gbRun = false;
-		//break; 
 		else if (e.type == SDL_KEYUP && e.key.keysym.sym == SDLK_ESCAPE)
 		{
 			switch (gState)
@@ -1491,21 +1495,10 @@ void m_poll()
 				loadMap(F_MAP_NAME);
 			}
 		}
-		/*if (e.key.keysym.scancode != SDL_GetScancodeFromKey(e.key.keysym.sym)) {
-		 SDL_Log("Physical %s key acting as %s key",
-			 SDL_GetScancodeName(e.key.keysym.scancode),
-			 SDL_GetKeyName(e.key.keysym.sym));
-	 } */
-		//break;
-		//If mouse event happened
 		else if (e.type == SDL_MOUSEBUTTONUP || e.type == SDL_MOUSEBUTTONDOWN)
 		{
-			//Get mouse position
 			int x, y;
 			SDL_GetMouseState(&x, &y);
-			//printf("mouse click : %d %d\n", x, y);
-
-			//for all the charge check if it is inside sprite form if so change the charge
 			switch (e.button.button)
 			{
 			case SDL_BUTTON_LEFT:
@@ -1531,9 +1524,7 @@ void m_poll()
 			{
 				UBase_t* b = findOverlayObj(x, y);
 				if (b)
-				{
 					b->bO = true;
-				}
 			}
 		}
 		else if (e.type == SDL_MOUSEWHEEL)
@@ -1565,18 +1556,12 @@ double cstof(enum EChargeStrength object)
 	double f = 0;
 	switch (object)
 	{
-	case EChargeStrength_ppp: f = 0.6f;
-		break;
-	case EChargeStrength_pp: f = 0.4f;
-		break;
-	case EChargeStrength_p: f = 0.2f;
-		break;
-	case EChargeStrength_m: f = -1.f;
-		break;
-	case EChargeStrength_mm: f = -2.f;
-		break;
-	case EChargeStrength_mmm: f = -3.f;
-		break;
+	case EChargeStrength_ppp: f = 0.6f; break;		
+	case EChargeStrength_pp: f = 0.4f; break;		
+	case EChargeStrength_p: f = 0.2f; break;	
+	case EChargeStrength_m: f = -1.f; break;
+	case EChargeStrength_mm: f = -2.f; break;		
+	case EChargeStrength_mmm: f = -3.f; break;		
 	default: ;
 	}
 	return f;
@@ -1659,7 +1644,6 @@ void m_update(uint32_t delta)
 				clamp(&p->b.x, 0.f, 100.f);
 				clamp(&p->b.y, 0.f, 100.f);
 
-
 				p->dx = (p->b.x - lastx) / delta;
 				p->dy = (p->b.y - lasty) / delta;
 
@@ -1691,10 +1675,8 @@ void m_update(uint32_t delta)
 		
 			if (fabs(p->b.x - flag->b.x) <= pxtod(16, true) && fabs(p->b.y - flag->b.y) <= pxtod(16, false))
 			{
-				printf("win\n");
 				gbGameFreeze = true;
 				gState = EGameState_Win;
-				//ut_create(P_GAMETILE_X, P_GAMETILE_Y, M_WIN, true);
 				++gNbTry;
 				saveScores(gNbTry);
 			}		
@@ -1753,9 +1735,9 @@ void ut_render(UText_t* this)
 		int w, h;
 		SDL_Color textColor = {200, 200, 200};
 		SDL_Texture* t;
-		char c[MAX_FILE_NAME];// = (char *)this->t.t;
+		char c[STRING_BUFFER_SIZE];// = (char *)this->t.t;
 
-		snprintf(c, MAX_FILE_NAME, this->t.t, gNbTry);
+		snprintf(c, STRING_BUFFER_SIZE, this->t.t, gNbTry);
 
 		if ((t = ctot(c, textColor, f, &w, &h)))
 		{
@@ -1830,7 +1812,7 @@ void m_render()
 	br_render();
 	da_obj_render(&da_obj);
 
-	if(gState == EGameState_Win)
+	if(gState == EGameState_Win) //A bit ugly in here...
 	{
 		SDL_Rect dest;
 
@@ -1859,8 +1841,8 @@ void m_render()
 		pressEscpae.bTextButton = false;
 		ut_render((UText_t *)&pressEscpae);
 
-		char c[MAX_FILE_NAME];
-		snprintf(c, MAX_FILE_NAME, M_SUCEED, gNbTry);
+		char c[STRING_BUFFER_SIZE];
+		snprintf(c, STRING_BUFFER_SIZE, M_SUCEED, gNbTry);
 
 		UTextBase_t intry;
 		intry.b.x = P_GAMETILE_X;
@@ -1875,15 +1857,14 @@ void m_render()
 		switch (p)
 		{
 		case 1:
-			snprintf(c, MAX_FILE_NAME, "You are 1st in highscore"); break;
+			snprintf(c, STRING_BUFFER_SIZE, "You are 1st in highscore"); break;
 		case 2:
-			snprintf(c, MAX_FILE_NAME, "You are 2nd in highscore"); break;
+			snprintf(c, STRING_BUFFER_SIZE, "You are 2nd in highscore"); break;
 		case 3:
-			snprintf(c, MAX_FILE_NAME, "You are 3rd in highscore"); break;
+			snprintf(c, STRING_BUFFER_SIZE, "You are 3rd in highscore"); break;
 		default:
-			snprintf(c, MAX_FILE_NAME, "You are not in highscore"); break;
+			snprintf(c, STRING_BUFFER_SIZE, "You are not in highscore"); break;
 		}	
-
 		UTextBase_t placeis;
 		placeis.b.x = P_GAMETILE_X;
 		placeis.b.y = P_GAMETILE_Y + 20.f;
@@ -1893,7 +1874,6 @@ void m_render()
 		placeis.bTextButton = false;
 		ut_render((UText_t *)&placeis);
 	}
-
 	SDL_RenderPresent(gSdlRenderer);
 }
 
