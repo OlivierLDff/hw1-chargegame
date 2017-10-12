@@ -14,7 +14,7 @@ int gCurrentWidth = SCREEN_WIDTH;
 #define SCREEN_HEIGHT 480
 int gCurrentHeight = SCREEN_HEIGHT;
 
-#define MAX_FILE_NAME 512
+#define MAX_FILE_NAME 64
 
 const char N_TEXTURE_BACKGROUND[] = "./images/background.png";
 const char N_TEXTURE_BACKGROUNDW[] = "./images/backgroundw.png";
@@ -64,6 +64,10 @@ const char M_SUCEED[] = "You suceed in %d try";
 const char M_PLACEINSCORE[] = "You are %d in highscore";
 const char M_QUIT[] = "Quit";
 
+char sc1[MAX_FILE_NAME];	//Score 1 string
+char sc2[MAX_FILE_NAME];	//Score 2 string
+char sc3[MAX_FILE_NAME];	//Score 3 string
+
 const double P_GAMETILE_X = 50;
 const double P_GAMETILE_Y = 30;
 
@@ -110,63 +114,69 @@ TTF_Font* gSecondaryFontBold = NULL;
 TTF_Font* gTitleFont = NULL;
 
 /** \brief Background SDL texture pointer */
-SDL_Texture* gtBACKGROUND = NULL;
+SDL_Texture * gtBACKGROUND = NULL;
 /** \brief Background win SDL texture pointer */
-SDL_Texture* gtBACKGROUNDW = NULL;
+SDL_Texture * gtBACKGROUNDW = NULL;
 /** \brief Particle image SDL texture pointer */
-SDL_Texture* gtPARTICLE = NULL;
+SDL_Texture * gtPARTICLE = NULL;
 /** \brief charge + image SDL texture pointer */
-SDL_Texture* gtCHARGE1 = NULL;
+SDL_Texture * gtCHARGE1 = NULL;
 /** \brief charge ++ image SDL texture pointer */
-SDL_Texture* gtCHARGE2 = NULL;
+SDL_Texture * gtCHARGE2 = NULL;
 /** \brief charge +++ image SDL texture pointer */
-SDL_Texture* gtCHARGE3 = NULL;
+SDL_Texture * gtCHARGE3 = NULL;
 /** \brief charge - image SDL texture pointer */
-SDL_Texture* gtNEGCHARGE1 = NULL;
+SDL_Texture * gtNEGCHARGE1 = NULL;
 /** \brief charge -- image SDL texture pointer */
-SDL_Texture* gtNEGCHARGE2 = NULL;
+SDL_Texture * gtNEGCHARGE2 = NULL;
 /** \brief charge --- image SDL texture pointer */
-SDL_Texture* gtNEGCHARGE3 = NULL;
+SDL_Texture * gtNEGCHARGE3 = NULL;
 /** \brief image draw to overlay a particle/charge/flag when mouse is on it image SDL texture pointer */
-SDL_Texture* gtOVERLAYCHARGE = NULL;
+SDL_Texture * gtOVERLAYCHARGE = NULL;
 /** \brief image draw to overlay a particle/charge/flag when drag and drap image SDL texture pointer */
-SDL_Texture* gtDRAGCHARGE = NULL;
+SDL_Texture * gtDRAGCHARGE = NULL;
 /** \brief flag image SDL texture pointer */
-SDL_Texture* gtFLAG = NULL;
+SDL_Texture * gtFLAG = NULL;
 /** \brief not used in this version, may be used to draw wall begin */
-SDL_Texture* gtBEGIN = NULL;
+SDL_Texture * gtBEGIN = NULL;
 /** \brief not used in this version, may be used to draw wall end */
-SDL_Texture* gtEND = NULL;
+SDL_Texture * gtEND = NULL;
 /** \brief pause button texture */
-SDL_Texture* gtPAUSE = NULL;
+SDL_Texture * gtPAUSE = NULL;
 /** \brief pause button bold texture */
-SDL_Texture* gtPAUSEB = NULL;
+SDL_Texture * gtPAUSEB = NULL;
 /** \brief back texture */
-SDL_Texture* gtBACK = NULL;
+SDL_Texture * gtBACK = NULL;
 /** \brief back bold texture */
-SDL_Texture* gtBACKB = NULL;
+SDL_Texture * gtBACKB = NULL;
 /** \brief play texture */
-SDL_Texture* gtPLAY = NULL;
+SDL_Texture * gtPLAY = NULL;
 /** \brief play bold texture */
-SDL_Texture* gtPLAYB = NULL;
+SDL_Texture * gtPLAYB = NULL;
 /** \brief refresh texture */
-SDL_Texture* gtREFRESH = NULL;
+SDL_Texture * gtREFRESH = NULL;
 /** \brief refresh bold texture */
-SDL_Texture* gtREFRESHB = NULL;
+SDL_Texture * gtREFRESHB = NULL;
 /** \brief clear texture */
-SDL_Texture* gtCLEAR = NULL;
+SDL_Texture * gtCLEAR = NULL;
 /** \brief clear bold texture */
-SDL_Texture* gtCLEARB = NULL;
+SDL_Texture * gtCLEARB = NULL;
 
+/** \brief dynamic array element */
 typedef struct da_elm_t
 {
-	struct da_elm_t* next;
-	void* elt;
+	/** \brief pointer to the next dynamic array element */
+	struct da_elm_t * next;
+	/** \brief pointer to element, must be allocate and free by the user */
+	void * elt;
 } da_elm_t;
 
+/** \brief dynamic array */
 typedef struct da_t
 {
-	struct da_elm_t* first;
+	/** \brief first element of the array */
+	struct da_elm_t * first;
+	/** \brief size of the array */
 	size_t size;
 } da_t;
 
@@ -179,127 +189,128 @@ void* da_removeat(da_t* this, void* elt);
 /** \brief remove last element \return pointer to the element removed */
 void* da_remove(da_t* this);
 
+/** \brief game state */
 typedef enum EGameState
 {
-	EGameState_Unknown,
-	EGameState_MainMenu,
-	EGameState_ScoreMenu,
-	EGameState_FreeGame,
-	EGameState_LevelGame,
-	EGameState_Win,
-	EGameState_size,
+	EGameState_Unknown,		//Unkwown state, should never occured
+	EGameState_MainMenu,	//In main menu
+	EGameState_ScoreMenu,	//in score menu
+	EGameState_FreeGame,	//in level editor
+	EGameState_LevelGame,	//in level play
+	EGameState_Win,			//level play win
+	EGameState_size,		//to iterate inside the enum
 } EGameState;
 
-/** \brief current state of the game */
+/** \brief current state of the game, by default we start in main menu */
 EGameState gState = EGameState_MainMenu;
 
+/** \brief all text button available function */
 typedef enum ETextButtonFunction
 {
-	ETextButtonFunction_Unknown,
-	ETextButtonFunction_none,
-	ETextButtonFunction_free,
-	ETextButtonFunction_score,
-	ETextButtonFunction_level,
-	ETextButtonFunction_quit,
-	ETextButtonFunction_size
+	ETextButtonFunction_Unknown,	//unknown function, should never occured
+	ETextButtonFunction_none,		//text button doesn't do anything
+	ETextButtonFunction_free,		//Launch level editor
+	ETextButtonFunction_score,		//launch score menu
+	ETextButtonFunction_level,		//launch level play menu
+	ETextButtonFunction_quit,		//quit the application
+	ETextButtonFunction_size		//to iterate inside the enum
 } ETextButtonFunction;
 
+/** \brief all button available function */
 typedef enum EButtonFunction
 {
-	EButtonFunction_Unknown,
-	EButtonFunction_Pause,
-	EButtonFunction_Play,
-	EButtonFunction_Back,
-	EButtonFunction_Clear,
-	EButtonFunction_Retry,
-	EButtonFunction_Size,
+	EButtonFunction_Unknown,	//unknown function, should never occured
+	EButtonFunction_Pause,		//Freeze the game
+	EButtonFunction_Play,		//Unfreeze the game
+	EButtonFunction_Back,		//Back to main menu
+	EButtonFunction_Clear,		//Clear the level editor or score files
+	EButtonFunction_Retry,		//retry level
+	EButtonFunction_Size,		//to iterate inside the enum
 } EButtonFunction;
 
 typedef enum EObjectType
 {
-	EObjectType_Unknown,
-	EObjectType_Particle,
-	EObjectType_Charge,
-	EObjectType_flag,
-	EObjectType_begin,
-	EObjectType_end,
-	EObjectType_Text,
-	EObjectType_Button,
-	EObjectType_size,
+	EObjectType_Unknown,	//unknown function, should never occured
+	EObjectType_Particle,	//Object is a UParticle_t
+	EObjectType_Charge,		//Object is a UCharge_t
+	EObjectType_flag,		//Object is a UFlag_t
+	EObjectType_begin,		//not implemented
+	EObjectType_end,		//not implemented
+	EObjectType_Text,		//Object is a UText_t
+	EObjectType_Button,		//Object is a UButton_t
+	EObjectType_size,		//to iterate inside the enum
 } EObjectType;
 
 typedef enum EChargeStrength
 {
-	EChargeStrength_ppp,
-	EChargeStrength_pp,
-	EChargeStrength_p,
-	EChargeStrength_m,
-	EChargeStrength_mm,
-	EChargeStrength_mmm,
+	EChargeStrength_ppp,	//Charge Strength is +++
+	EChargeStrength_pp,		//Charge Strength is ++
+	EChargeStrength_p,		//Charge Strength is +
+	EChargeStrength_m,		//Charge Strength is -
+	EChargeStrength_mm,		//Charge Strength is --
+	EChargeStrength_mmm,	//Charge Strength is ---
 }EChargeStrength;
 
 typedef struct UBase
 {
-	/** \brief type of object */
-	EObjectType eot;
-	/** \brief position in the x axis, between 0 and 100 */
-	double x;
-	/** \brief position in the x axis, between 0 and 100 */
-	double y;
-	/** \brief width of the sprite */
-	double w;
-	/** \brief height of the sprite */
-	double h;
-	/** \brief is the object currently overlay by the pointer (mouse) */
-	bool bO;
-	/** \brief can be moved or delete ? used in the level game mode /// level editor */
-	bool bMoD;
+	EObjectType eot;//type of object 
+	double x;		//position in the x axis, between 0 and 100
+	double y;		//position in the y axis, between 0 and 100
+	double w;		//width of the object, can't be used to render sprite but this is for texts
+	double h;		//height of the object, can't be used to render sprite but this is for texts
+	bool bO;		// is the object currently overlay by the pointer (mouse)
+	bool bMoD;		//can be moved or delete ? used in the level game mode /// level editor 
 } UBase_t;
 
+/** \brief base object for a text */
 typedef struct UTextBase
 {
-	UBase_t b;
-	bool bTextButton;
-	bool bBig;
-	const char* t;
+	UBase_t b;			//parent
+	bool bTextButton;	//Is it a button also?
+	bool bBig;			//Print in big(difference for text only between Secondary font or TitleFont in render)
+	const char* t;		//Char to print
 } UTextBase_t;
 
+/** \brief child of Textbase, can have a function */
 typedef struct UTextButton
 {
-	UTextBase_t txt;
-	EButtonFunction f;
+	UTextBase_t txt;	//parent
+	EButtonFunction f;	//function of the button
 } UTextButton_t;
 
+/** \brief union between Utext and UTextButton */
 typedef union UText
 {
 	UTextBase_t t;
 	UTextButton_t tb;
 } UText_t;
 
+/** \brief Charge object, that can be positive or negative depending on ChargeStrength */
 typedef struct UCharge
 {
-	UBase_t b;
-	EChargeStrength f;
+	UBase_t b;			//parent
+	EChargeStrength f;	//force
 } UCharge_t;
 
-typedef struct UGE
+/** \brief flag that is the goal of the main particle */
+typedef struct UFlag
 {
-	UBase_t b;
+	UBase_t b;			//parent
 } UFlag_t;
 
+/** \brief, main particle, this is a singleton */
 typedef struct UParticle
 {
-	UBase_t b;
-	/** \brief speed of the particle x axis */
-	double dx;
-	/** \brief speed of the particle y axis */
-	double dy;
+	UBase_t b;			//parent
+	double dx;			//speed of the particle x axis 
+	double dy;			//speed of the particle y axis
 } UParticle_t;
 
+/** \brief object that can be clicked */
 typedef struct UButton
 {
-	UBase_t b;
-	EButtonFunction f;
+	UBase_t b;			//parent
+	EButtonFunction f;	//function of the button
 } UButton_t;
 
 /** \brief object that can be displayed and have a x/y, may be overlay */
@@ -315,37 +326,138 @@ typedef union UObject
 
 /** \brief current drag object */
 UBase_t* gDragObj = NULL;
-/** \brief dynamic array of objects */
+/** \brief dynamic array of objects that are render */
 da_t da_obj;
 /** \brief return the main particle inside the da_obj array */
 UParticle_t* getMainParticle();
-bool bGameFreeze = false;
+/** \brief is the game freeze, ie charge don't do nothing to the main Particle */
+bool gbGameFreeze = false;
+/** \brief default location of main particle x axis */
 double gMPPosx = 50.f;
+/** \brief default location of main particle y axis */
 double gMPPosy = 50.f;
-uint32_t gTrynb = 0;
+/** \brief number of try for the level, reset when level menu is init */
+uint32_t gNbTry = 0;
 
 //________________DISPLAY FUNCTION______________________
 
 /** \brief name to texture */
 SDL_Texture* ntt(const char* name);
+/** \brief EChargeStrength To Texture */
+SDL_Texture* ecstot(UCharge_t * c);
+/** \brief EButtonFunction to Texture */
+SDL_Texture* ebftot(UButton_t* this);
+/** \brief EObjectType to Texture */
+SDL_Texture* eotot(UBase_t * b);
+/** \brief char to texture, texture need to be free after */
+SDL_Texture* ctot(char* textureText, SDL_Color textColor, TTF_Font* f, int* w, int* h);
 
-//________________UOBJECT FUNCTION______________________
+/** \brief pixel to double. Translate the value of a pixel in a double between 0.f and 100.f depending on the current screen resolution */
+double pxtod(const int px, const bool xAxis);
+/** \brief double to pixel*/
+int dtopx(const double p, const bool xAxis);
+/** \brief clamp a double */
+void clamp(double* p, double from, double to);
 
-//____UBASE
-/** \brief render a Ubase object */
-void ub_render(UBase_t* this);
+/** \brief UBase_t init */
+void ub_init(UBase_t* this, const double x, const double y, const double h, const double w, const EObjectType e);
+/** \brief UCharge_t initialize */
+void ch_init(UCharge_t* this, const double x, const double y, EChargeStrength cs);
+/** \brief allocate a Charge_t and init it */
+void ch_create(const double x, const double y, const enum EChargeStrength cs);
+/** \brief create an UFlag object and add it into da_obj */
+void uf_create(const double x, const double y, EObjectType type);
+/** \brief create main particle if it doesn't already exist */
+void p_create(const double x, const double y, const double dx, const double dy);
+/** \brief allocate an UtextBase_t object */
+UTextBase_t* ut_create(const double x, const double y, const char* t, bool bBig);
+/** Allocate and init a text button object */
+UTextButton_t* utb_create(const double x, const double y, EButtonFunction f);
 
-//____UCHARGE
+/** \brief load background image */
+void br_init();
+/** \brief render the background */
+void br_render();
+/** \brief destroy background image */
+void br_destroy();
 
-//____UBUTTON
+/** \brief UTextButton_t click */
 void utb_click(UTextButton_t* this);
+/** \brief UButton click */
+void ubt_click(UButton_t* this);
 
+/** \brief are x and y over the UBase object */
+bool ub_over(UBase_t* elt, const double x, const double y);
+/** \brief get the object inside da_obj under the mouse \return nullptr if no object found */
+UBase_t* findOverlayObj(const int x, const int y);
+/** \brief Clear highlight flag from all da_obj object */
+void clrhflg();
+/** \brief sort da_obj from behind to front */
+void da_obj_sort();
+
+/** \brief charge strength to force */
+double cstof(enum EChargeStrength object);
+/** \brief UCharge To Acceleration */
+bool uctoa(UCharge_t* c, double* fx, double* fy, double x, double y);
+
+/** \brief UBase_t render */
+void ub_render(UBase_t* this);
+/** \brief UText render */
+void ut_render(UText_t* this);
+/** \brief render every object inside dynamic array */
+void da_obj_render(da_t* da);
+
+/** \brief initialize game state menu */
 void menu_init();
+/** \brief initialize game state score */
+void score_init();
+/** \brief initialize game state level */
+void level_init(bool bLoadMap);
+/** \brief initialize game state freemode \param bLoadMap should the map be loaded or reinitialize to 0 */
 void freemode_init(bool bLoadMap);
 
+/** \brief destroy all object insa da_obj */
+void obj_destroy();
+
+/** \brief save current map to filename */
 void saveMap(const char * filename);
+/** \brief load map into da_obj */
 void loadMap(const char * filename);
-void score_init();
+
+/** \brief load score array */
+void loadScores();
+/** \brief save score array and add the new value if necessary */
+void saveScores(uint32_t value);
+/** \brief Erase Score */
+void eraseScores();
+/** \brief score to rank */
+uint32_t scrtorank();
+
+/** \brief does an object type exist inside da_obj ?*/
+bool objTExist(const EObjectType type);
+
+/** \brief are we allowed to create or delete object */
+inline bool bCanCreateOrDelete();
+
+/** \brief Handle mouse left click */
+void hmlc(const bool bUp, const int x, const int y);
+/** \brief Handle mouse right click */
+void hmrc(const bool bUp, const int x, const int y);
+/** \brief Handle mouse middle click */
+void hmmc(const bool bUp, const int x, const int y);
+
+/** \brief initialize the app */
+void m_init();
+/** \brief poll sdl event */
+void m_poll();
+/** \brief update the physics of the game */
+void m_update(uint32_t delta);
+/** \brief render the game */
+void m_render();
+/** \brief clamp refreshment of main loop to 60fps */
+void m_clamp60fps(const uint32_t LastUpdateTick);
+/** \brief clear all the ressources */
+void m_clear();
 
 UParticle_t* getMainParticle()
 {
@@ -375,7 +487,7 @@ SDL_Texture* ecstot(UCharge_t * c)
 	return NULL;
 }
 
-SDL_Texture* ebtot(UButton_t* this)
+SDL_Texture* ebftot(UButton_t* this)
 {
 	if (!this) return NULL;
 	switch (this->f)
@@ -400,7 +512,7 @@ SDL_Texture* eotot(UBase_t * b)
 	case EObjectType_flag: return gtFLAG;
 	case EObjectType_begin: return gtBEGIN;
 	case EObjectType_end: return gtEND;
-	case EObjectType_Button: return ebtot((UButton_t *)b);
+	case EObjectType_Button: return ebftot((UButton_t *)b);
 	default: ;
 	}
 	return NULL;
@@ -503,7 +615,7 @@ bool objTExist(const EObjectType type)
 	return false;
 }
 
-void uge_create(const double x, const double y, EObjectType type)
+void uf_create(const double x, const double y, EObjectType type)
 {
 	//if (type != EObjectType_begin && type != EObjectType_flag) return;
 
@@ -661,7 +773,7 @@ SDL_Texture* ntt(const char* name)
 	return texture;
 }
 
-void p_init(const double x, const double y, const double dx, const double dy)
+void p_create(const double x, const double y, const double dx, const double dy)
 {
 	UParticle_t* mp = getMainParticle();
 	if (!mp)
@@ -755,7 +867,7 @@ void ch_create(const double x, const double y, const enum EChargeStrength cs)
 	ch_init(c, x, y, cs);
 }
 
-void saveScoresx()
+void eraseScores()
 {
 	FILE* fp = NULL;
 	memset(gScores, 0, sizeof(uint32_t)* MAX_SCORES);
@@ -778,19 +890,19 @@ void ubt_click(UButton_t* this)
 	case EButtonFunction_Pause: 
 		if(gState == EGameState_FreeGame)
 		{
-			bGameFreeze = true; 
+			gbGameFreeze = true; 
 			this->f = EButtonFunction_Play;
 		}
 		break;
 	case EButtonFunction_Play:
 		if (gState == EGameState_FreeGame)
 		{
-			bGameFreeze = false; 
+			gbGameFreeze = false; 
 			this->f = EButtonFunction_Pause;
 		}
 		else if (gState == EGameState_LevelGame)
 		{
-			bGameFreeze = false; 
+			gbGameFreeze = false; 
 			this->f = EButtonFunction_Retry;
 		}
 		break;
@@ -800,17 +912,17 @@ void ubt_click(UButton_t* this)
 			freemode_init(false);
 		else if (gState == EGameState_ScoreMenu)
 		{
-			saveScoresx();
+			eraseScores();
 			score_init();
 		}
 		break;
 	case EButtonFunction_Retry: 
 		if (gState == EGameState_LevelGame) 
 		{
-			++gTrynb;
-			bGameFreeze = true; 
+			++gNbTry;
+			gbGameFreeze = true; 
 			this->f = EButtonFunction_Play;
-			p_init(gMPPosx, gMPPosy, 0, 0);
+			p_create(gMPPosx, gMPPosy, 0, 0);
 		}
 	case EButtonFunction_Size: break;
 	default: ;
@@ -819,10 +931,10 @@ void ubt_click(UButton_t* this)
 
 inline bool bCanCreateOrDelete()
 {
-	return !(gState == EGameState_LevelGame && !bGameFreeze);
+	return !(gState == EGameState_LevelGame && !gbGameFreeze);
 }
 
-void SDL_HandleLeftClick(const bool bUp, const int x, const int y)
+void hmlc(const bool bUp, const int x, const int y)
 {
 	UBase_t* obj = findOverlayObj(x, y);
 
@@ -857,7 +969,7 @@ void SDL_HandleLeftClick(const bool bUp, const int x, const int y)
 	}
 }
 
-void SDL_HandleRightClick(const bool bUp, const int x, const int y)
+void hmrc(const bool bUp, const int x, const int y)
 {
 	UBase_t* obj = findOverlayObj(x, y);
 	switch (gState)
@@ -871,7 +983,7 @@ void SDL_HandleRightClick(const bool bUp, const int x, const int y)
 		{
 			if (obj == NULL)
 			{
-				uge_create(pxtod(x, true), pxtod(y, false), EObjectType_flag);
+				uf_create(pxtod(x, true), pxtod(y, false), EObjectType_flag);
 			}
 			else
 			{
@@ -890,7 +1002,7 @@ void SDL_HandleRightClick(const bool bUp, const int x, const int y)
 	}
 }
 
-void SDL_HandleMiddleClick(const bool bUp, const int x, const int y)
+void hmmc(const bool bUp, const int x, const int y)
 {
 	UBase_t* b = NULL;
 	switch (gState)
@@ -959,7 +1071,7 @@ UTextBase_t* ut_create(const double x, const double y, const char* t, bool bBig)
 	return res;
 }
 
-SDL_Texture* loadFromRenderedText(char* textureText, SDL_Color textColor, TTF_Font* f, int* w, int* h)
+SDL_Texture* ctot(char* textureText, SDL_Color textColor, TTF_Font* f, int* w, int* h)
 {
 	if (!(w && h)) return NULL;
 	//Get rid of preexisting texture
@@ -1024,10 +1136,6 @@ UTextButton_t* utb_create(const double x, const double y, EButtonFunction f)
 	return res;
 }
 
-char sc1[MAX_FILE_NAME];
-char sc2[MAX_FILE_NAME];
-char sc3[MAX_FILE_NAME];
-
 void score_init()
 {
 	if (gDeleteCurrentState) gDeleteCurrentState();	
@@ -1091,7 +1199,7 @@ void level_init(bool bLoadMap)
 		it = it->next;
 	}
 	if (!flg) //create a flag
-		uge_create(50.f,50.f, EObjectType_flag);
+		uf_create(50.f,50.f, EObjectType_flag);
 
 	it = userobj.first;
 	while (it)
@@ -1106,16 +1214,16 @@ void level_init(bool bLoadMap)
 	{
 		gMPPosx = p->b.x;
 		gMPPosy = p->b.y;
-		gTrynb = 0;
+		gNbTry = 0;
 	}
 
-	p_init(gMPPosx, gMPPosy, 0, 0);	
+	p_create(gMPPosx, gMPPosy, 0, 0);	
 
 	ubt_create(P_BACK_X, P_BACK_Y, EButtonFunction_Back);
 	ubt_create(P_PAUSEPLAY_X, P_PAUSEPLAY_Y, EButtonFunction_Play);
 	ut_create(P_BACK_X+5.f, P_PAUSEPLAY_Y, M_TRY, false);
 
-	bGameFreeze = true;
+	gbGameFreeze = true;
 
 	gDeleteCurrentState = &obj_destroy;
 }
@@ -1138,7 +1246,7 @@ void menu_init()
 {
 	if (gDeleteCurrentState) gDeleteCurrentState();
 	printf("create menu \n");
-	bGameFreeze = false;
+	gbGameFreeze = false;
 	loadMap(F_MENUMAP_NAME);
 	gState = EGameState_MainMenu;
 	ut_create(P_GAMETILE_X, P_GAMETILE_Y, M_GAMETITLE, true);
@@ -1155,11 +1263,11 @@ void freemode_init(bool bLoadMap)
 	if (gDeleteCurrentState) gDeleteCurrentState();
 	if(bLoadMap) loadMap(F_MAP_NAME);
 	gState = EGameState_FreeGame;
-	p_init(gMPPosx, gMPPosy, 0, 0); //Ensure the main particle always exist
+	p_create(gMPPosx, gMPPosy, 0, 0); //Ensure the main particle always exist
 	ubt_create(P_BACK_X, P_BACK_Y, EButtonFunction_Back);
 	ubt_create(P_PAUSEPLAY_X, P_PAUSEPLAY_Y, EButtonFunction_Pause);
 	ubt_create(P_CLEAR_X, P_CLEAR_Y, EButtonFunction_Clear);
-	bGameFreeze = false;
+	gbGameFreeze = false;
 	gDeleteCurrentState = &obj_destroy;
 }
 
@@ -1226,11 +1334,11 @@ void m_init()
 
 	da_init(&da_obj); //init array of obj
 	br_init(); //init background
-	//p_init();
+	//p_create();
 	menu_init();
 }
 
-void clearHighlightf()
+void clrhflg()
 {
 	da_elm_t* it = da_obj.first;
 	while (it)
@@ -1310,7 +1418,7 @@ void loadMap(const char * filename)
 				UParticle_t p;
 				printf("create patcile\n");
 				fread(&p, sizeof(UParticle_t), 1, fp);
-				p_init(p.b.x, p.b.y, p.dx, p.dy);
+				p_create(p.b.x, p.b.y, p.dx, p.dy);
 			}
 			break;
 		case EObjectType_Charge:
@@ -1324,7 +1432,7 @@ void loadMap(const char * filename)
 		{
 			UFlag_t ge;
 			fread(&ge, sizeof(UFlag_t), 1, fp);
-			uge_create(ge.b.x, ge.b.y, ge.b.eot);
+			uf_create(ge.b.x, ge.b.y, ge.b.eot);
 		}
 			break;
 		default: printf("failed to load map\n");
@@ -1401,17 +1509,17 @@ void m_poll()
 			switch (e.button.button)
 			{
 			case SDL_BUTTON_LEFT:
-				SDL_HandleLeftClick(e.type == SDL_MOUSEBUTTONUP, x, y);
+				hmlc(e.type == SDL_MOUSEBUTTONUP, x, y);
 				break;
 			case SDL_BUTTON_RIGHT:
-				SDL_HandleRightClick(e.type == SDL_MOUSEBUTTONUP, x, y);
+				hmrc(e.type == SDL_MOUSEBUTTONUP, x, y);
 				break;
 			default: ;
 			}
 		}
 		else if (e.type == SDL_MOUSEMOTION)
 		{
-			clearHighlightf();
+			clrhflg();
 			int x, y;
 			SDL_GetMouseState(&x, &y);
 			if (gDragObj)
@@ -1434,11 +1542,11 @@ void m_poll()
 			SDL_GetMouseState(&x, &y);
 			if (e.wheel.y == 1) // scroll up
 			{
-				SDL_HandleMiddleClick(true, x, y);
+				hmmc(true, x, y);
 			}
 			else if (e.wheel.y == -1) // scroll down
 			{
-				SDL_HandleMiddleClick(false, x, y);
+				hmmc(false, x, y);
 			}
 		}
 		else if (e.type == SDL_WINDOWEVENT) //windows resize
@@ -1452,7 +1560,7 @@ void m_poll()
 	}
 }
 
-double getffeo(enum EChargeStrength object)
+double cstof(enum EChargeStrength object)
 {
 	double f = 0;
 	switch (object)
@@ -1490,10 +1598,10 @@ void clamp(double* p, double from, double to)
 }
 
 /** \brief force to acceleration */
-bool ftoa(UCharge_t* c, double* fx, double* fy, double x, double y)
+bool uctoa(UCharge_t* c, double* fx, double* fy, double x, double y)
 {
 	if (!(fx && fy)) return false;
-	double f = getffeo(c->f);
+	double f = cstof(c->f);
 	double xd = x - c->b.x;
 	double yd = y - c->b.y;
 	double d = sqrt(xd * xd + yd * yd);
@@ -1523,7 +1631,7 @@ void m_update(uint32_t delta)
 			return;
 		}
 		da_elm_t* it = da_obj.first;
-		if (!bGameFreeze)
+		if (!gbGameFreeze)
 		{
 			while (it)
 			{
@@ -1534,7 +1642,7 @@ void m_update(uint32_t delta)
 
 				EObjectType e = it->elt ? ((UBase_t*)it->elt)->eot : EObjectType_Unknown;
 				if (e == EObjectType_Charge)
-					ftoa((UCharge_t*)it->elt, &fx, &fy, p->b.x, p->b.y);
+					uctoa((UCharge_t*)it->elt, &fx, &fy, p->b.x, p->b.y);
 
 				fx -= p->dx * AIR_FRICTION;
 				fy -= p->dy * AIR_FRICTION;
@@ -1584,11 +1692,11 @@ void m_update(uint32_t delta)
 			if (fabs(p->b.x - flag->b.x) <= pxtod(16, true) && fabs(p->b.y - flag->b.y) <= pxtod(16, false))
 			{
 				printf("win\n");
-				bGameFreeze = true;
+				gbGameFreeze = true;
 				gState = EGameState_Win;
 				//ut_create(P_GAMETILE_X, P_GAMETILE_Y, M_WIN, true);
-				++gTrynb;
-				saveScores(gTrynb);
+				++gNbTry;
+				saveScores(gNbTry);
 			}		
 		}	
 	}
@@ -1647,9 +1755,9 @@ void ut_render(UText_t* this)
 		SDL_Texture* t;
 		char c[MAX_FILE_NAME];// = (char *)this->t.t;
 
-		snprintf(c, MAX_FILE_NAME, this->t.t, gTrynb);
+		snprintf(c, MAX_FILE_NAME, this->t.t, gNbTry);
 
-		if ((t = loadFromRenderedText(c, textColor, f, &w, &h)))
+		if ((t = ctot(c, textColor, f, &w, &h)))
 		{
 			SDL_Rect dest;
 
@@ -1708,10 +1816,10 @@ void da_obj_render(da_t* da)
 	}
 }
 
-uint32_t getPlaceFromScore()
+uint32_t scrtorank()
 {
 	size_t i = 0;
-	for(i; i < MAX_SCORES; ++i) if (gScores[i] == gTrynb) return i + 1;
+	for(i; i < MAX_SCORES; ++i) if (gScores[i] == gNbTry) return i + 1;
 	return 0;
 }
 
@@ -1752,7 +1860,7 @@ void m_render()
 		ut_render((UText_t *)&pressEscpae);
 
 		char c[MAX_FILE_NAME];
-		snprintf(c, MAX_FILE_NAME, M_SUCEED, gTrynb);
+		snprintf(c, MAX_FILE_NAME, M_SUCEED, gNbTry);
 
 		UTextBase_t intry;
 		intry.b.x = P_GAMETILE_X;
@@ -1763,7 +1871,7 @@ void m_render()
 		intry.bTextButton = false;
 		ut_render((UText_t *)&intry);
 
-		uint32_t p = getPlaceFromScore();
+		uint32_t p = scrtorank();
 		switch (p)
 		{
 		case 1:
@@ -1794,27 +1902,56 @@ void m_clear()
 	void* elt;
 	while ((elt = da_remove(&da_obj))) free(elt);
 	br_destroy();
+
+	TTF_CloseFont(gMainFont);
+	TTF_CloseFont(gMainFontBold);
+	TTF_CloseFont(gSecondaryFont);
+	TTF_CloseFont(gSecondaryFontBold);
+	TTF_CloseFont(gTitleFont);
+
+	SDL_DestroyTexture(gtBACKGROUNDW);
+	SDL_DestroyTexture(gtPARTICLE);
+	SDL_DestroyTexture(gtCHARGE1);
+	SDL_DestroyTexture(gtCHARGE2);
+	SDL_DestroyTexture(gtCHARGE3);
+	SDL_DestroyTexture(gtNEGCHARGE1);
+	SDL_DestroyTexture(gtNEGCHARGE2);
+	SDL_DestroyTexture(gtNEGCHARGE3);
+	SDL_DestroyTexture(gtOVERLAYCHARGE);
+	SDL_DestroyTexture(gtDRAGCHARGE);
+	SDL_DestroyTexture(gtFLAG);
+	SDL_DestroyTexture(gtBEGIN);
+	SDL_DestroyTexture(gtEND);
+	SDL_DestroyTexture(gtPAUSE);
+	SDL_DestroyTexture(gtPAUSEB);
+	SDL_DestroyTexture(gtBACK);
+	SDL_DestroyTexture(gtBACKB);
+	SDL_DestroyTexture(gtPLAY);
+	SDL_DestroyTexture(gtPLAYB);
+	SDL_DestroyTexture(gtREFRESH);
+	SDL_DestroyTexture(gtREFRESHB);
+	SDL_DestroyTexture(gtCLEAR);
+	SDL_DestroyTexture(gtCLEARB);
+
 	SDL_DestroyWindow(gSdlWindow);
 	SDL_Quit();
 }
 
 int main(int argc, char* argv[])
 {
-	uint32_t uilt = SDL_GetTicks() + 16;
-	m_init();
+	uint32_t uilt = SDL_GetTicks() + 16;	//last tick
+	m_init();								//init the application
 
 	while (gbRun)
 	{
-		uint32_t uict = SDL_GetTicks();
-		m_poll();
-		m_update(uict - uilt);
-		m_render();
+		uint32_t uict = SDL_GetTicks();		//current tick
+		m_poll();							//poll input
+		m_update(uict - uilt);				//update physics
+		m_render();							//render the game
 
-		m_clamp60fps(uict);
-		uilt = uict;
+		m_clamp60fps(uict);					//clamp the rendering to 60fps
+		uilt = uict;						//update last time
 	}
-
-	m_clear();
-
+	m_clear();								//clear all ressources
 	return 0;
 }
