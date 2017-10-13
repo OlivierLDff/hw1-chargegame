@@ -65,6 +65,72 @@
 # (To distribute this file outside of CMake, substitute the full
 #  License text for the above reference.)
 
+
+if(MSVC)
+
+
+if(NOT SDL2_TTF_INCLUDE_DIR AND SDL2TTF_INCLUDE_DIR)
+  set(SDL2_TTF_INCLUDE_DIR ${SDL2TTF_INCLUDE_DIR} CACHE PATH "directory cache entry initialized from old variable name")
+endif()
+find_path(SDL2_TTF_INCLUDE_DIR SDL_TTF.h
+  HINTS
+    ENV SDL2TTFDIR
+    ENV SDL2DIR
+    ${SDL2_DIR}
+  PATH_SUFFIXES SDL2
+                # path suffixes to search inside ENV{SDL2DIR}
+                include/SDL2 include
+)
+
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  set(VC_LIB_PATH_SUFFIX lib/x64)
+else()
+  set(VC_LIB_PATH_SUFFIX lib/x86)
+endif()
+
+if(NOT SDL2_TTF_LIBRARY AND SDL2TTF_LIBRARY)
+  set(SDL2_TTF_LIBRARY ${SDL2TTF_LIBRARY} CACHE FILEPATH "file cache entry initialized from old variable name")
+endif()
+find_library(SDL2_TTF_LIBRARY
+  NAMES SDL2_TTF
+  HINTS
+    ENV SDL2TTFDIR
+    ENV SDL2DIR
+    ${SDL2_DIR}
+  PATH_SUFFIXES lib ${VC_LIB_PATH_SUFFIX}
+)
+
+if(SDL2_TTF_INCLUDE_DIR AND EXISTS "${SDL2_TTF_INCLUDE_DIR}/SDL_TTF.h")
+  file(STRINGS "${SDL2_TTF_INCLUDE_DIR}/SDL_TTF.h" SDL2_TTF_VERSION_MAJOR_LINE REGEX "^#define[ \t]+SDL_TTF_MAJOR_VERSION[ \t]+[0-9]+$")
+  file(STRINGS "${SDL2_TTF_INCLUDE_DIR}/SDL_TTF.h" SDL2_TTF_VERSION_MINOR_LINE REGEX "^#define[ \t]+SDL_TTF_MINOR_VERSION[ \t]+[0-9]+$")
+  file(STRINGS "${SDL2_TTF_INCLUDE_DIR}/SDL_TTF.h" SDL2_TTF_VERSION_PATCH_LINE REGEX "^#define[ \t]+SDL_TTF_PATCHLEVEL[ \t]+[0-9]+$")
+  string(REGEX REPLACE "^#define[ \t]+SDL_TTF_MAJOR_VERSION[ \t]+([0-9]+)$" "\\1" SDL2_TTF_VERSION_MAJOR "${SDL_TTF_VERSION_MAJOR_LINE}")
+  string(REGEX REPLACE "^#define[ \t]+SDL_TTF_MINOR_VERSION[ \t]+([0-9]+)$" "\\1" SDL2_TTF_VERSION_MINOR "${SDL_TTF_VERSION_MINOR_LINE}")
+  string(REGEX REPLACE "^#define[ \t]+SDL_TTF_PATCHLEVEL[ \t]+([0-9]+)$" "\\1" SDL2_TTF_VERSION_PATCH "${SDL_TTF_VERSION_PATCH_LINE}")
+  set(SDL2_TTF_VERSION_STRING ${SDL2_TTF_VERSION_MAJOR}.${SDL2_TTF_VERSION_MINOR}.${SDL2_TTF_VERSION_PATCH})
+  unset(SDL2_TTF_VERSION_MAJOR_LINE)
+  unset(SDL2_TTF_VERSION_MINOR_LINE)
+  unset(SDL2_TTF_VERSION_PATCH_LINE)
+  unset(SDL2_TTF_VERSION_MAJOR)
+  unset(SDL2_TTF_VERSION_MINOR)
+  unset(SDL2_TTF_VERSION_PATCH)
+endif()
+
+set(SDL2_TTF_LIBRARY ${SDL2_TTF_LIBRARY})
+set(SDL2_TTF_INCLUDE_DIRS ${SDL2_TTF_INCLUDE_DIR})
+
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(SDL2_TTF
+                                  REQUIRED_VARS SDL2_TTF_LIBRARY SDL2_TTF_INCLUDE_DIRS
+                                  VERSION_VAR SDL2_TTF_VERSION_STRING)
+
+# for backward compatibility
+set(SDL2TTF_LIBRARY ${SDL2_TTF_LIBRARY})
+set(SDL2TTF_INCLUDE_DIR ${SDL2_TTF_INCLUDE_DIRS})
+set(SDL2TTF_FOUND ${SDL2_TTF_FOUND})
+
+mark_as_advanced(SDL2_TTF_LIBRARY SDL2_TTF_INCLUDE_DIR)
+else()
+  
 SET(SDL2TTF_SEARCH_PATHS
   ~/Library/Frameworks
   /Library/Frameworks
@@ -74,6 +140,7 @@ SET(SDL2TTF_SEARCH_PATHS
   /opt/local # DarwinPorts
   /opt/csw # Blastwave
   /opt
+  ${SDL2_DIR}
 )
 
 FIND_PATH(SDL2TTF_INCLUDE_DIR SDL_ttf.h
@@ -117,7 +184,7 @@ ENDIF(NOT APPLE)
 
 # MinGW needs an additional library, mwindows
 # It's total link flags should look like -lmingw32 -lSDL2TTFmain -lSDL2TTF -lmwindows
-# (Actually on second look, I think it only needs one of the m* libraries.)
+# (Actually on second look, I think it only needs one of the m* LIBRARY.)
 IF(MINGW)
   SET(MINGW32_LIBRARY mingw32 CACHE STRING "mwindows for MinGW")
 ENDIF(MINGW)
@@ -161,3 +228,4 @@ ENDIF(SDL2TTF_LIBRARY_TEMP)
 INCLUDE(FindPackageHandleStandardArgs)
 
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(SDL2TTF REQUIRED_VARS SDL2TTF_LIBRARY SDL2TTF_INCLUDE_DIR)
+endif()

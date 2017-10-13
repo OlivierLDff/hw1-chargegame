@@ -569,6 +569,7 @@ void ub_init(UBase_t* this, const double x, const double y, const double h, cons
 		this->w = w;
 		this->h = h;
 		this->eot = e;
+		this->bMoD = 1;
 	}
 }
 
@@ -980,6 +981,7 @@ void hmlc(const bool bUp, const int x, const int y)
 				gDragObj = NULL;
 			else
 			{		
+				
 				if ( obj && obj->eot == EObjectType_Button)
 					ubt_click((UButton_t *)obj);
 				else if(bCanCreateOrDelete())
@@ -987,7 +989,12 @@ void hmlc(const bool bUp, const int x, const int y)
 			}
 		}
 		else if (obj && obj->bMoD)
-				gDragObj = obj;
+		{
+			
+			gDragObj = obj;
+		}
+		printf(" obj->bMoD = %d %d\n", obj->bMoD & 1, EObjectType_Button);
+				
 		break;
 	default: ;
 	}
@@ -1403,7 +1410,6 @@ void saveMap(const char * filename)
 			default: ;
 			}
 		}
-
 		it = it->next;
 	}
 	fclose(fp);
