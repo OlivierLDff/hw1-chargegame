@@ -1,16 +1,18 @@
 # Charge Game
 
-[TOC]
-
 ## Introduction
 
-The program shoots a particle of positive charge in a given direction. There are a few other charged particles for the player to place them on the field. The goal is to place the particles in a way to make the moving particle hit a predefined target. Each scenario can have walls, fixed charges, etc.
+Charge game with SDL2.
 
-The program should also score the player (e.g. the number of trials to hit the target), and administer a persistent hall of fame.
+This program create a particle that can be attracted or repulse from multiples charges. The player need to place others charges to make the moving particle arrive at a certain point. The player can retry multiple time. The goal is to suceed the level in the less try as possible. The 3 best scores are keep in a file and can be display in the highscore file. The level can also be created in a level editor, save and load.
 
 ## Build
 
 ```sh
+sudo apt-get install libsdl2
+sudo apt-get install libsdl2
+sudo apt-get install libsdl2
+
 mkdir build
 cd build
 cmake -DSDL2_DIR=./SDL2 ..

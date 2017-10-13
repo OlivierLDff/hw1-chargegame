@@ -642,27 +642,21 @@ bool objTExist(const EObjectType type)
 
 void uf_create(const double x, const double y, EObjectType type)
 {
-	//if (type != EObjectType_begin && type != EObjectType_flag) return;
-
-	//if (objTExist(type)) type = type == EObjectType_begin ? EObjectType_flag : EObjectType_begin;
 	if (objTExist(type)) return;
 
 	UFlag_t* e = malloc(sizeof(UFlag_t));
 	ub_init((UBase_t *)e, x, y, pxtod(32, false), pxtod(32, true), type);
 	da_push(&da_obj, e);
-	printf("create uge\n");
 }
 
 void ub_render(UBase_t* this)
 {
 	SDL_Rect dest;
 
-	//printf(">render\n");
-
 	if (this->x >= 0 && this->y >= 0 && this->x <= 100 && this->y <= 100)
 	{
-		dest.w = 32;//dtopx(this->w, true);
-		dest.h = 32;//dtopx(this->h, false);
+		dest.w = 32; // ub always have a 32 px sprite
+		dest.h = 32; // ub always have a 32 px sprite
 		dest.x = dtopx(this->x - this->w * 0.5f, true);
 		dest.y = dtopx(this->y - this->h * 0.5f, false);
 
@@ -989,11 +983,7 @@ void hmlc(const bool bUp, const int x, const int y)
 			}
 		}
 		else if (obj && obj->bMoD)
-		{
-			
 			gDragObj = obj;
-		}
-		printf(" obj->bMoD = %d %d\n", obj->bMoD & 1, EObjectType_Button);
 				
 		break;
 	default: ;
@@ -1089,7 +1079,7 @@ void hmmc(const bool bUp, const int x, const int y)
 UTextBase_t* ut_create(const double x, const double y, const char* t, bool bBig)
 {
 	UTextBase_t* res = malloc(sizeof(UTextButton_t));
-	if (!res) printf("Fail to allocate memory for utb\n");
+	if (!res) fprintf(stderr, "Fail to allocate memory for utb\n");
 	else
 	{
 		ub_init((UBase_t*)res, x, y, 0, 0, EObjectType_Text);
@@ -1112,7 +1102,7 @@ SDL_Texture* ctot(char* textureText, SDL_Color textColor, TTF_Font* f, int* w, i
 	SDL_Surface* textSurface = TTF_RenderText_Blended(f, textureText, textColor);
 	if (textSurface == NULL)
 	{
-		printf("Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError());
+		fprintf(stderr ,"Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError());
 		return NULL;
 	}
 
@@ -1120,7 +1110,7 @@ SDL_Texture* ctot(char* textureText, SDL_Color textColor, TTF_Font* f, int* w, i
 	res = SDL_CreateTextureFromSurface(gSdlRenderer, textSurface);
 	if (res == NULL)
 	{
-		printf("Unable to create texture from rendered text! SDL Error: %s\n", SDL_GetError());
+		fprintf(stderr, "Unable to create texture from rendered text! SDL Error: %s\n", SDL_GetError());
 	}
 	else
 	{
@@ -1276,7 +1266,6 @@ void utb_click(UTextButton_t* this)
 void menu_init()
 {
 	if (gDeleteCurrentState) gDeleteCurrentState();
-	printf("create menu \n");
 	gbGameFreeze = false;
 	loadMap(F_MENUMAP_NAME);
 	gState = EGameState_MainMenu;
@@ -1324,19 +1313,19 @@ void m_init()
 	//__________________OPEN FONT__________________
 	gMainFontBold = TTF_OpenFont("./fonts/Roboto-Black.ttf", 48);
 	if (gMainFontBold == NULL)
-		printf("Failed to load Roboto font! SDL_ttf Error: %s\n", TTF_GetError());
+		fprintf(stderr, "Failed to load Roboto font! SDL_ttf Error: %s\n", TTF_GetError());
 	gMainFont = TTF_OpenFont("./fonts/Roboto-Regular.ttf", 48);
 	if (gMainFont == NULL)
-		printf("Failed to load Roboto font! SDL_ttf Error: %s\n", TTF_GetError());
+		fprintf(stderr, "Failed to load Roboto font! SDL_ttf Error: %s\n", TTF_GetError());
 	gSecondaryFont = TTF_OpenFont("./fonts/Roboto-Regular.ttf", 28);
 	if (gSecondaryFont == NULL)
-		printf("Failed to load Roboto font! SDL_ttf Error: %s\n", TTF_GetError());
+		fprintf(stderr, "Failed to load Roboto font! SDL_ttf Error: %s\n", TTF_GetError());
 	gSecondaryFontBold = TTF_OpenFont("./fonts/Roboto-Black.ttf", 60);
 	if (gSecondaryFontBold == NULL)
-		printf("Failed to load Roboto font! SDL_ttf Error: %s\n", TTF_GetError());
+		fprintf(stderr, "Failed to load Roboto font! SDL_ttf Error: %s\n", TTF_GetError());
 	gTitleFont = TTF_OpenFont("./fonts/Roboto-Regular.ttf", 70);
 	if (gSecondaryFont == NULL)
-		printf("Failed to load Roboto font! SDL_ttf Error: %s\n", TTF_GetError());
+		fprintf(stderr, "Failed to load Roboto font! SDL_ttf Error: %s\n", TTF_GetError());
 
 	//__________________OPEN IMAGES__________________
 	gtPARTICLE = ntt(N_TEXTURE_PARTICLE); 
@@ -1436,14 +1425,13 @@ void loadMap(const char * filename)
 		{
 		case EObjectType_Particle:
 			{
-				UParticle_t p;
-				printf("create patcile\n");
+				UParticle_t p;			
 				fread(&p, sizeof(UParticle_t), 1, fp);
 				p_create(p.b.x, p.b.y, p.dx, p.dy);
 			}
 			break;
 		case EObjectType_Charge:
-			{printf("create c\n");
+			{
 				UCharge_t c;
 				fread(&c, sizeof(UCharge_t), 1, fp);
 				ch_create(c.b.x, c.b.y, c.f);
@@ -1456,7 +1444,7 @@ void loadMap(const char * filename)
 			uf_create(ge.b.x, ge.b.y, ge.b.eot);
 		}
 			break;
-		default: printf("failed to load map\n");
+		default: fprintf(stderr, "failed to load map\n");
 			fclose(fp); break;
 		}
 	}
@@ -1796,11 +1784,11 @@ void da_obj_render(da_t* da)
 				break;
 			case EObjectType_size:
 			default: ;
-				printf("error don't know how to render this object\n");
+				fprintf(stderr, "error don't know how to render this object\n");
 			}
 		}
 		else
-			printf("Error : presence of nullptr obj in array\n");
+			fprintf(stderr, "Error : presence of nullptr obj in array\n");
 		it = it->next;
 	}
 }
