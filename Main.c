@@ -61,9 +61,9 @@ uint32_t gScores[MAX_SCORES];
 //_______________GAME PHYSICS CONSTANT________________
 
 const double MAX_ACCELERATION = 0.00005f;
-const double MAX_SPEED = 0.1f;
+const double MAX_SPEED = 10.f;
 const double PARTICLE_WEIGHT_CONST = 0.005f;
-const double AIR_FRICTION = 0.001f;
+const double AIR_FRICTION = 0.0001f;
 
 //_________________STRING CONSTANT____________________
 
@@ -1551,9 +1551,9 @@ double cstof(enum EChargeStrength object)
 	double f = 0;
 	switch (object)
 	{
-	case EChargeStrength_ppp: f = 0.6f; break;		
-	case EChargeStrength_pp: f = 0.4f; break;		
-	case EChargeStrength_p: f = 0.2f; break;	
+	case EChargeStrength_ppp: f = 3.f; break;		
+	case EChargeStrength_pp: f = 2.f; break;		
+	case EChargeStrength_p: f = 1.f; break;	
 	case EChargeStrength_m: f = -1.f; break;
 	case EChargeStrength_mm: f = -2.f; break;		
 	case EChargeStrength_mmm: f = -3.f; break;		
@@ -1612,41 +1612,43 @@ void m_update(uint32_t delta)
 		}
 		da_elm_t* it = da_obj.first;
 		if (!gbGameFreeze)
-		{
+		{	
+			double fx = 0; //sum of force to apply on x axis
+			double fy = 0; //sum of force to apply on y axis
+			double lastx = p->b.x; //last x pos, used to compute dx
+			double lasty = p->b.y; //last y pos, used to compute dy
+
 			while (it)
 			{
-				double fx = 0;
-				double fy = 0;
-				double lastx = p->b.x;
-				double lasty = p->b.y;
 
 				EObjectType e = it->elt ? ((UBase_t*)it->elt)->eot : EObjectType_Unknown;
 				if (e == EObjectType_Charge)
 					uctoa((UCharge_t*)it->elt, &fx, &fy, p->b.x, p->b.y);
-
-				fx -= p->dx * AIR_FRICTION;
-				fy -= p->dy * AIR_FRICTION;
-
-				fx *= PARTICLE_WEIGHT_CONST;
-				fy *= PARTICLE_WEIGHT_CONST;
-
-				clamp(&fx, -MAX_ACCELERATION, MAX_ACCELERATION);
-				clamp(&fy, -MAX_ACCELERATION, MAX_ACCELERATION);
-
-				p->b.x += p->dx * delta + fx * delta * delta;
-				p->b.y += p->dy * delta + fy * delta * delta;
-
-				clamp(&p->b.x, 0.f, 100.f);
-				clamp(&p->b.y, 0.f, 100.f);
-
-				p->dx = (p->b.x - lastx) / delta;
-				p->dy = (p->b.y - lasty) / delta;
-
-				clamp(&p->dx, -MAX_SPEED, MAX_SPEED);
-				clamp(&p->dy, -MAX_SPEED, MAX_SPEED);
-
 				it = it->next;
 			}
+
+			fx -= p->dx * AIR_FRICTION; //remove air friction on x axis (-speedx)
+			fy -= p->dy * AIR_FRICTION; //remove air friction on y axis (-speedy)
+
+			fx *= PARTICLE_WEIGHT_CONST; //multiply the force with the particle weigth
+			fy *= PARTICLE_WEIGHT_CONST; //multiply the force with the particle weigth
+
+			clamp(&fx, -MAX_ACCELERATION, MAX_ACCELERATION); //Clamp the maximum acceleration, we are in a game not real world
+			clamp(&fy, -MAX_ACCELERATION, MAX_ACCELERATION);
+
+			p->b.x += p->dx * delta + fx * delta * delta; // s = vt + 0.5*vt^2
+			p->b.y += p->dy * delta + fy * delta * delta;
+
+			clamp(&p->b.x, 0.f, 100.f); //stay inside the playground
+			clamp(&p->b.y, 0.f, 100.f); //stay inside the playground
+
+			p->dx = (p->b.x - lastx) / delta; //compute new x speed
+			p->dy = (p->b.y - lasty) / delta; //compute new y speed
+
+			clamp(&p->dx, -MAX_SPEED, MAX_SPEED); //clamp the x speed
+			clamp(&p->dy, -MAX_SPEED, MAX_SPEED); //clamp the y speed
+
+			
 		}
 		if(gState == EGameState_LevelGame)
 		{
