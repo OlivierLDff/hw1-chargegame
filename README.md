@@ -2,11 +2,15 @@
 
 [TOC]
 
+<div style="page-break-after: always;"></div>
+
 ## Introduction
 
 Charge game with SDL2.
 
 This program create a particle that can be attracted or repulse from multiples charges. The player need to place others charges to make the moving particle arrive at a certain point. The player can retry multiple time. The goal is to suceed the level in the less try as possible. The 3 best scores are keep in a file and can be display in the highscore file. The level can also be created in a level editor, save and load.
+
+Github can be found [here](https://github.com/OlivierLDff/hw1-chargegame).
 
 ## Specification
 
@@ -34,6 +38,8 @@ Every Object own this properties:
   * This flag is often use to highlight the element when rendering.
 * **can be moved or delete** : this property is set on the object depending on player right and the part of the gmae
 
+<div style="page-break-after: always;"></div>
+
 ### Main menu
 
 ![](./images/rdme_mainmenu.png)
@@ -45,6 +51,8 @@ When the menu is loaded, a map called *menumap.dat* is also loaded to play the a
 #### Available commands
 
 * **Escape** keyboard quit the game
+
+<div style="page-break-after: always;"></div>
 
 ### Free mode
 
@@ -77,6 +85,8 @@ All the charges have different strength. The blue one attract and the red one re
 
 These objects are `UCharge_t`, to differentiate their strength they have an property that define their strength. This strength is use to compute attraction or repulsion and to choose the image to render.
 
+<div style="page-break-after: always;"></div>
+
 ##### Flag
 
 The flag element also behaved as a singleton because their only be one finish point.
@@ -108,6 +118,8 @@ All the button are based on the `UButton_t` structure. They have an enumeration 
   ![](./images/backb.png)
 
 
+<div style="page-break-after: always;"></div>
+
 ### Level
 
 ![](./images/rdme_level.png)
@@ -134,11 +146,15 @@ All the button are based on the `UButton_t` structure. They have an enumeration 
 - **Pause / Retry** : play the game or retry the map. When the game is played to charges can be moved, deleted or add.
 - **Back** : come back to main screen.
 
+<div style="page-break-after: always;"></div>
+
 ### Win Screen
 
 ![](./images/rdm_win.png)
 
 When the game is win a new screen apear that say the game is won. If the number of try is in the 3 best score the score is written in the file.
+
+<div style="page-break-after: always;"></div>
 
 ### Score
 
@@ -149,6 +165,8 @@ All scores are stored inside a file called *scores.dat*. it is a binary file wit
 ### Map saving and loading
 
 The map is very easy to store because all object are stored inside a dynamic array. To save we just need to iterate in this array and save every structure that needs to be saved *(ie buttons and texts don't need to be saved)*. When loading we just need to read object type of each structure to know how many bytes needs to be read and which structure need to be created.
+
+<div style="page-break-after: always;"></div>
 
 ## Build
 
