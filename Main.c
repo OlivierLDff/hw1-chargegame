@@ -63,7 +63,7 @@ uint32_t gScores[MAX_SCORES];
 const double MAX_ACCELERATION = 0.00005f;
 const double MAX_SPEED = 10.f;
 const double PARTICLE_WEIGHT_CONST = 0.005f;
-const double AIR_FRICTION = 0.0001f;
+const double AIR_FRICTION = 0.001f;
 
 //_________________STRING CONSTANT____________________
 
