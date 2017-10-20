@@ -158,8 +158,8 @@ The map is very easy to store because all object are stored inside a dynamic arr
 
 ```sh
 sudo apt-get install libsdl2-dev
-sudo apt-get install libsdl2image-dev
-sudo apt-get install libsdl2ttf-dev
+sudo apt-get install libsdl2-image-dev
+sudo apt-get install libsdl2-ttf-dev
 
 git clone https://github.com/OlivierLDff/hw1-chargegame.git
 cd hw1-chargegame
