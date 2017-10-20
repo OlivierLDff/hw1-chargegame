@@ -1,5 +1,7 @@
 # Charge Game
 
+[TOC]
+
 ## Introduction
 
 Charge game with SDL2.
@@ -20,6 +22,9 @@ The game is divided into different screen with such hierarchy:
 Every element present in the software can be considered as on object. This can be done in c thanks to structure union. So all buttons, particles, charges, text are based on the same structure `UBase_t`. The union is `UObject_t`. So all object render are UObject. With such a pattern all the object are put inside a **dynamic array** to keep track of all of them.
 
 Every Object own this properties:
+
+* **Object Type** : which kind a structure it is.
+
 
 * **x** : position on the x axis in pourcent between 0 and 100
 * **y** : position on the y axis in pourcent between 0 and 100
@@ -111,7 +116,45 @@ In the level the play can launch the game with the play button and relaunch it w
 
 The number of try are also shown.
 
+#### Available commands
+
+- **Escape** keyboard : come back to main menu
+- **Left mouse click :**  *(only working when game is paused)*
+  - in an empty place : create a charge with default minus charge.
+  - over something : drag an drop if possible
+- **Right mouse click :**  *(only working when game is paused)*
+  - in an empty place : place a flag
+  - oversomething : try to delete it
+- **Middle mouse up and down : **  *(only working when game is paused)* over a charge it changes its strength
+
+#### Available buttons
+
+All the button are based on the `UButton_t` structure. They have an enumeration to know to which function they are link when they get clicked.
+
+- **Pause / Retry** : play the game or retry the map. When the game is played to charges can be moved, deleted or add.
+- **Back** : come back to main screen.
+
+### Win Screen
+
+![](./images/rdm_win.png)
+
+When the game is win a new screen apear that say the game is won. If the number of try is in the 3 best score the score is written in the file.
+
+### Score
+
+All scores are stored inside a file called *scores.dat*. it is a binary file with 3 `uint32_t`.
+
+![](./images/rdme_score.png)
+
+### Map saving and loading
+
+The map is very easy to store because all object are stored inside a dynamic array. To save we just need to iterate in this array and save every structure that needs to be saved *(ie buttons and texts don't need to be saved)*. When loading we just need to read object type of each structure to know how many bytes needs to be read and which structure need to be created.
+
 ## Build
+
+### Linux
+
+*Tested on Ubuntu 16.04 with SDL 2.0.6 from official repository*
 
 ```sh
 sudo apt-get install libsdl2-dev
@@ -126,11 +169,18 @@ cmake ..
 make
 ```
 
-On windows it is easier to specify sdl2 directory on build time:
+### Windows
+
+*Tested on windows 1511 with SDL 2.0.6*
+
+#### Requirement
+
+* [SDL2](https://www.libsdl.org/download-2.0.php) : SDL.lib and SDLmain.lib
+* [SDL2 Image](https://www.libsdl.org/projects/SDL_image/) : SDLimage.lib to handle .png
+* [SDL2 TTF](https://www.libsdl.org/projects/SDL_ttf/) : SDLttf.lib to handle fonts
+
+On windows it is easier to specify sdl2 directory on build time *(and put every library and include in it)*:
 
 ```sh
 cmake -DSDL2_DIR=./SDL2 ..
 ```
-
-* tested on windows 10
-* tested on elementary os (linux)

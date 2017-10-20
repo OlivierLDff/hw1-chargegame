@@ -662,9 +662,11 @@ void ub_render(UBase_t* this)
 
 		if(this->eot >= EObjectType_Particle && this->eot <= EObjectType_begin)
 		{
+			const bool bGameIsNotBeingPlayed = (gState != EGameState_LevelGame || gbGameFreeze);
+			const bool bCanBeMoved = ((gState != EGameState_LevelGame) || this->bMoD);
 			if (gDragObj == this)
 				SDL_RenderCopy(gSdlRenderer, gtDRAGCHARGE, NULL, &dest);
-			else if (this->bO && ((gState != EGameState_LevelGame) || this->bMoD) && gState != EGameState_Win)
+			else if (this->bO && bGameIsNotBeingPlayed && bCanBeMoved && gState != EGameState_Win && gState != EGameState_MainMenu)
 				SDL_RenderCopy(gSdlRenderer, gtOVERLAYCHARGE, NULL, &dest);
 		}	
 		SDL_RenderCopy(gSdlRenderer, eotot(this), NULL, &dest);
@@ -982,7 +984,7 @@ void hmlc(const bool bUp, const int x, const int y)
 					ch_create(pxtod(x, true), pxtod(y, false), EChargeStrength_m);
 			}
 		}
-		else if (obj && obj->bMoD)
+		else if (obj && obj->bMoD && (gState != EGameState_LevelGame || gbGameFreeze))
 			gDragObj = obj;
 				
 		break;
@@ -1034,8 +1036,7 @@ void hmmc(const bool bUp, const int x, const int y)
 	case EGameState_LevelGame:
 	case EGameState_FreeGame:
 		b = findOverlayObj(x, y);
-		//EObjectType e = b ? ((UBase_t*)b)->s : EObjectType_Unknown;
-		if (b && b->eot == EObjectType_Charge)
+		if (b && b->eot == EObjectType_Charge && (gState != EGameState_LevelGame || gbGameFreeze) && ((gState != EGameState_LevelGame) || b->bMoD))
 		{
 			UCharge_t * c = (UCharge_t *)b;
 			if (bUp)
@@ -1053,23 +1054,6 @@ void hmmc(const bool bUp, const int x, const int y)
 					c->f++;
 			}
 		}
-		/*if (b && b->eot >= EObjectType_flag && b->eot <= EObjectType_begin)
-		{
-			if (objTExist((b->eot == EObjectType_flag) ? EObjectType_begin : EObjectType_flag))
-			{
-				da_elm_t* it = da_obj.first;
-				while (it)
-				{
-					if (it->elt && (((UBase_t *)it->elt)->eot == ((b->eot == EObjectType_flag) ? EObjectType_begin : EObjectType_flag)))
-					{
-						((UBase_t *)it->elt)->eot = b->eot;
-						break;
-					}
-					it = it->next;
-				}
-			}
-			((UBase_t*)b)->eot = (b->eot == EObjectType_flag) ? EObjectType_begin : EObjectType_flag;
-		}*/
 		break;
 	case EGameState_size: break;
 	default: ;
@@ -1647,8 +1631,6 @@ void m_update(uint32_t delta)
 
 			clamp(&p->dx, -MAX_SPEED, MAX_SPEED); //clamp the x speed
 			clamp(&p->dy, -MAX_SPEED, MAX_SPEED); //clamp the y speed
-
-			
 		}
 		if(gState == EGameState_LevelGame)
 		{
