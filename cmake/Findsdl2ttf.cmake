@@ -1,3 +1,4 @@
+if(MSVC)
 # Locate SDL2 library
 # This module defines
 # SDL2_LIBRARY, the name of the library to link against
@@ -229,3 +230,69 @@ INCLUDE(FindPackageHandleStandardArgs)
 
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(SDL2TTF REQUIRED_VARS SDL2TTF_LIBRARY SDL2TTF_INCLUDE_DIR)
 endif()
+else(MSVC)
+# GNU sdl2 TTF
+if(SDL2TTF_INCLUDE_DIR AND SDL2TTF_LIBRARY)
+  set(SDL2TTF_FOUND TRUE)
+else(SDL2TTF_INCLUDE_DIR AND SDL2TTF_LIBRARY)
+
+  #mac with port install
+  find_path(
+    SDL2TTF_INCLUDE_DIR
+    SDL2/SDL_ttf.h
+    PATHS
+    /opt/local/include/
+    /usr/local/include/
+    NO_DEFAULT_PATH)
+
+  find_library(
+    SDL2TTF_LIBRARY 
+    sdl2_ttf
+    /opt/local/lib
+    /usr/local/lib
+    NO_DEFAULT_PATH)
+
+
+  #linux 
+  find_path(
+    SDL2TTF_INCLUDE_DIR
+    SDL2/SDL_ttf.h)
+  find_library(
+    SDL2TTF_LIBRARY
+    SDL2_ttf)
+	
+  #windows
+  find_path(
+    SDL2TTF_INCLUDE_DIR
+    SDL2/SDL_ttf.h
+    PATHS
+    "C:/Program Files/SDL"
+    NO_DEFAULT_PATH)
+
+  find_library(
+    SDL2TTF_LIBRARY 
+    sdl2_ttf
+    "C:/Program Files/SDL/lib/x86"
+    NO_DEFAULT_PATH)
+
+	#windows oliv
+  find_path(
+    SDL2TTF_INCLUDE_DIR
+    SDL2/SDL_ttf.h
+    PATHS
+    "D:/Programmes/SDL2-2.0.5/include"
+    NO_DEFAULT_PATH)
+	MESSAGE("D:/Programmes/SDL2-2.0.5/include")
+
+  find_library(
+    SDL2TTF_LIBRARY 
+    SDL2_ttf
+    "D:/Programmes/SDL2-2.0.5/lib/x86"
+    NO_DEFAULT_PATH)
+
+
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(sdl2tff DEFAULT_MSG SDL2TTF_INCLUDE_DIR SDL2TTF_LIBRARY )
+  mark_as_advanced(SDL2TTF_INCLUDE_DIR SDL2TTF_LIBRARY)
+endif(SDL2TTF_INCLUDE_DIR AND SDL2TTF_LIBRARY)
+endif(MSVC)

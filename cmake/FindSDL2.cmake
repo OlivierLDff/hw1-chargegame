@@ -140,12 +140,14 @@ else(SDL2_INCLUDE_DIR AND SDL2_LIBRARY)
     SDL2/SDL.h
     PATHS
     /opt/local/include/
+    /usr/local/include/
     NO_DEFAULT_PATH)
 
   find_library(
     SDL2_LIBRARY 
     sdl2
     /opt/local/lib
+    /usr/local/lib
     NO_DEFAULT_PATH)
 
 

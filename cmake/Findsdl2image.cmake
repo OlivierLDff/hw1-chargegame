@@ -109,12 +109,14 @@ else(SDL2IMAGE_INCLUDE_DIR AND SDL2IMAGE_LIBRARY)
     SDL2/SDL_image.h
     PATHS
     /opt/local/include/
+    /usr/local/include/
     NO_DEFAULT_PATH)
 
   find_library(
     SDL2IMAGE_LIBRARY 
     sdl2_image
     /opt/local/lib
+    /usr/local/lib
     NO_DEFAULT_PATH)
 
 
